@@ -43,5 +43,21 @@ set(BUILD_TESTING ON)
 # Add core source directories
 add_subdirectory(src)
 
-# Add wrk2_machnet (conditionally included if required)
-add_subdirectory(src/apps/wrk2 EXCLUDE_FROM_ALL) # Exclude unless explicitly requested
+# Add wrk2 (conditionally included if required)
+if(EXISTS "${PROJECT_SOURCE_DIR}/src/apps/wrk2")
+    add_subdirectory(src/apps/wrk2) # Ensure wrk2 gets added if it exists
+    message(STATUS "Added wrk2 target.")
+else()
+    message(WARNING "wrk2 directory not found. Skipping wrk2 target.")
+endif()
+
+# Re-adding third_party/gflags for safety (if required explicitly)
+if(EXISTS "${PROJECT_SOURCE_DIR}/third_party/gflags")
+    add_subdirectory(third_party/gflags EXCLUDE_FROM_ALL)
+endif()
+
+# Add wrk2 executable
+if(TARGET wrk2)
+    target_link_libraries(wrk2 PRIVATE gflags glog HdrHistogram_c)
+    include_directories(${GFLAGS_INCLUDE_DIRS})
+endif()
