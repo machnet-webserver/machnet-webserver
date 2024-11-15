@@ -54,9 +54,6 @@ set(WRK2_HEADERS
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/zmalloc.h"
 )
 
-# Find Lua
-find_package(Lua REQUIRED)
-
 # Define executable
 add_executable(wrk2 ${WRK2_SOURCES})
 
@@ -69,6 +66,7 @@ target_include_directories(wrk2 PRIVATE
     "${CMAKE_SOURCE_DIR}/third_party/gflags/include"
     "${CMAKE_SOURCE_DIR}/third_party/glog/src"
     "${CMAKE_SOURCE_DIR}/third_party/HdrHistogram_c/include"
+    "${CMAKE_SOURCE_DIR}/src/ext" # Include machnet.h directory
     ${LUA_INCLUDE_DIR}
 )
 
