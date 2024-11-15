@@ -39,13 +39,13 @@ set(WRK2_SOURCES
 # Define executable
 add_executable(wrk2 ${WRK2_SOURCES})
 
-# Find and link HdrHistogram_c explicitly
-find_library(HDRHISTOGRAM_LIB NAMES HdrHistogram_c PATHS "${CMAKE_BINARY_DIR}/third_party/HdrHistogram_c" NO_DEFAULT_PATH)
+# Explicitly add the HdrHistogram_c library path
+set(HDRHISTOGRAM_LIB_PATH "${CMAKE_SOURCE_DIR}/third_party/HdrHistogram_c/libHdrHistogram_c.a")
 
-if(HDRHISTOGRAM_LIB)
-    message(STATUS "Found HdrHistogram_c at ${HDRHISTOGRAM_LIB}")
+if(EXISTS "${HDRHISTOGRAM_LIB_PATH}")
+    message(STATUS "Found HdrHistogram_c library at ${HDRHISTOGRAM_LIB_PATH}")
 else()
-    message(FATAL_ERROR "HdrHistogram_c library not found. Ensure it is built in the expected location.")
+    message(FATAL_ERROR "HdrHistogram_c library not found at ${HDRHISTOGRAM_LIB_PATH}. Ensure it is built.")
 endif()
 
 # Link libraries
@@ -54,7 +54,7 @@ target_link_libraries(wrk2 PRIVATE
     glog 
     ssl 
     crypto 
-    "${HDRHISTOGRAM_LIB}" # Explicitly link HdrHistogram_c
+    "${HDRHISTOGRAM_LIB_PATH}" # Explicitly link HdrHistogram_c
 )
 
 # Include directories
