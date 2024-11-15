@@ -19,22 +19,6 @@ if(EXISTS "${WRK2_BINARY_DIR}")
     message(STATUS "Cleaned existing binary directory: ${WRK2_BINARY_DIR}")
 endif()
 
-# Add LuaJIT
-set(LUAJIT_SRC_DIR "${CMAKE_SOURCE_DIR}/src/apps/wrk2/deps/luajit/src")
-set(LUAJIT_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/src/apps/wrk2/deps/luajit/src")
-set(LUAJIT_LIB_DIR "${CMAKE_BINARY_DIR}/src/apps/wrk2/deps/luajit_build")
-include_directories(${LUAJIT_INCLUDE_DIR})
-
-# Define LuaJIT build target
-add_custom_command(
-    OUTPUT ${LUAJIT_LIB_DIR}/libluajit.a
-    COMMAND make -C ${LUAJIT_SRC_DIR}
-    WORKING_DIRECTORY ${LUAJIT_SRC_DIR}
-    COMMENT "Building LuaJIT..."
-)
-
-add_custom_target(build_luajit ALL DEPENDS ${LUAJIT_LIB_DIR}/libluajit.a)
-
 # Define source files
 set(WRK2_SOURCES
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ae.c"
@@ -55,23 +39,18 @@ set(WRK2_SOURCES
 # Define executable
 add_executable(wrk2 ${WRK2_SOURCES})
 
-# Ensure LuaJIT is built before wrk2
-add_dependencies(wrk2 build_luajit)
-
 # Link libraries
-target_link_libraries(wrk2 PRIVATE gflags glog HdrHistogram_c ssl crypto ${LUAJIT_LIB_DIR}/libluajit.a)
+target_link_libraries(wrk2 PRIVATE gflags glog HdrHistogram_c ssl crypto)
 
 # Include directories
 target_include_directories(wrk2 PRIVATE
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src"
+    "${CMAKE_SOURCE_DIR}/src/include" # Added include directory for pause.h
+    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/deps/luajit/src"
     "${CMAKE_SOURCE_DIR}/third_party/gflags/include"
     "${CMAKE_SOURCE_DIR}/third_party/glog/src"
     "${CMAKE_SOURCE_DIR}/third_party/HdrHistogram_c/include"
-    "${CMAKE_SOURCE_DIR}/src/ext" # Include machnet.h directory
-    ${LUAJIT_INCLUDE_DIR}
 )
 
 # Debug message to confirm the target creation
 message(STATUS "wrk2 target successfully created.")
-message(STATUS "Using LuaJIT include directory: ${LUAJIT_INCLUDE_DIR}")
-message(STATUS "LuaJIT library path: ${LUAJIT_LIB_DIR}/libluajit.a")
