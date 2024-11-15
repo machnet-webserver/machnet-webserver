@@ -11,6 +11,10 @@ local wrk = {
 
 function wrk.resolve(host, service)
    local addrs = wrk.lookup(host, service)
+   print("Debug: resolve addrs:", addrs) -- Debug statement
+   if not addrs or #addrs == 0 then
+      error("Failed to resolve addresses for host: " .. tostring(host))
+   end
    for i = #addrs, 1, -1 do
       if not wrk.connect(addrs[i]) then
          table.remove(addrs, i)
@@ -20,22 +24,30 @@ function wrk.resolve(host, service)
 end
 
 function wrk.setup(thread)
+   print("Debug: wrk.addrs in setup:", wrk.addrs) -- Debug statement
+   if not wrk.addrs or #wrk.addrs == 0 then
+      error("wrk.addrs is nil or empty. Ensure resolve is called first.")
+   end
    thread.addr = wrk.addrs[1]
+   print("Debug: thread.addr in setup:", thread.addr) -- Debug statement
    if type(setup) == "function" then
       setup(thread)
    end
 end
 
 function wrk.init(args)
+   print("Debug: wrk.host:", wrk.host) -- Debug statement
+   print("Debug: wrk.port:", wrk.port) -- Debug statement
    if not wrk.headers["Host"] then
       local host = wrk.host
       local port = wrk.port
 
-      host = host:find(":") and ("[" .. host .. "]")  or host
-      host = port           and (host .. ":" .. port) or host
+      host = host:find(":") and ("[" .. host .. "]") or host
+      host = port and (host .. ":" .. port) or host
 
       wrk.headers["Host"] = host
    end
+   print("Debug: wrk.headers['Host']:", wrk.headers["Host"]) -- Debug statement
 
    if type(init) == "function" then
       init(args)
@@ -54,6 +66,7 @@ function wrk.format(method, path, headers, body)
    local body    = body    or wrk.body
    local s       = {}
 
+   print("Debug: wrk.format headers:", headers) -- Debug statement
    if not headers["Host"] then
       headers["Host"] = wrk.headers["Host"]
    end
@@ -62,11 +75,11 @@ function wrk.format(method, path, headers, body)
 
    s[1] = string.format("%s %s HTTP/1.1", method, path)
    for name, value in pairs(headers) do
-      s[#s+1] = string.format("%s: %s", name, value)
+      s[#s + 1] = string.format("%s: %s", name, value)
    end
 
-   s[#s+1] = ""
-   s[#s+1] = body or ""
+   s[#s + 1] = ""
+   s[#s + 1] = body or ""
 
    return table.concat(s, "\r\n")
 end
