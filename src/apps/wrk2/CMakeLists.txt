@@ -2,9 +2,18 @@ cmake_minimum_required(VERSION 3.0)
 
 project(wrk2 VERSION 0.0.1 DESCRIPTION "High-performance HTTP benchmarking tool" LANGUAGES C)
 
+# Default to Debug build type if not specified
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+endif()
+
 # Include testing support (disabled for third-party modules)
 include(CTest)
 set(BUILD_TESTING OFF) # Disable testing for third-party modules
+
+# Enable debug flags for better gdb support
+set(CMAKE_C_FLAGS_DEBUG "-g -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 
 # Unique binary directory variables
 set(WRK2_BINARY_DIR "${CMAKE_BINARY_DIR}/src/apps/wrk2_build")
@@ -12,6 +21,7 @@ set(WRK2_BINARY_DIR "${CMAKE_BINARY_DIR}/src/apps/wrk2_build")
 # Debugging messages for paths
 message(STATUS "Source dir for wrk2: ${CMAKE_SOURCE_DIR}/src/apps/wrk2")
 message(STATUS "Binary dir for wrk2: ${WRK2_BINARY_DIR}")
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 # Ensure binary directory is not reused
 if(EXISTS "${WRK2_BINARY_DIR}")
