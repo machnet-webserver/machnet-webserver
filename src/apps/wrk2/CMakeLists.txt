@@ -44,9 +44,10 @@ target_link_libraries(wrk2 PRIVATE gflags glog HdrHistogram_c ssl crypto)
 
 # Include directories
 target_include_directories(wrk2 PRIVATE
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src"
-    "${CMAKE_SOURCE_DIR}/src/include" # Added include directory for pause.h
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/deps/luajit/src"
+    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src"          # Source directory for wrk2
+    "${CMAKE_SOURCE_DIR}/src/include"               # For pause.h
+    "${CMAKE_SOURCE_DIR}/src/ext"                   # For machnet.h and related headers
+    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/deps/luajit/src" # For LuaJIT
     "${CMAKE_SOURCE_DIR}/third_party/gflags/include"
     "${CMAKE_SOURCE_DIR}/third_party/glog/src"
     "${CMAKE_SOURCE_DIR}/third_party/HdrHistogram_c/include"
