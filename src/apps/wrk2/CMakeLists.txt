@@ -34,13 +34,14 @@ set(WRK2_SOURCES
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/units.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/wrk.c" # Entry point
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/zmalloc.c"
+    "${CMAKE_SOURCE_DIR}/src/ext/machnet.c" # Add machnet.c directly
 )
 
 # Define executable
 add_executable(wrk2 ${WRK2_SOURCES})
 
 # Link libraries
-target_link_libraries(wrk2 PRIVATE gflags glog ssl crypto)
+target_link_libraries(wrk2 PRIVATE gflags glog ssl crypto machnet_shim)
 
 # Include directories
 target_include_directories(wrk2 PRIVATE
