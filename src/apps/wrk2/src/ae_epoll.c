@@ -30,6 +30,8 @@
 
 
 #include <sys/epoll.h>
+#include "ae.h"
+
 
 typedef struct aeApiState {
     int epfd;
