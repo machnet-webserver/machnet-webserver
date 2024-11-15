@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.0)
 
+# Explicitly set CMP0079 policy to NEW for target-specific linking
+if(POLICY CMP0079)
+    cmake_policy(SET CMP0079 NEW)
+endif()
+
 project(juggler VERSION 0.0.1 DESCRIPTION "Packet Juggling framework in C++" LANGUAGES CXX C)
 
 include(CTest)
