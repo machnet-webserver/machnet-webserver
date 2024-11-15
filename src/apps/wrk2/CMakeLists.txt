@@ -24,7 +24,7 @@ set(WRK2_SOURCES
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ae.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ae_epoll.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/aprintf.c"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/hdr_histogram.c"
+    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/hdr_histogram.c" # Use the local hdr_histogram.c
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/http_parser.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/net.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/script.c"
@@ -39,23 +39,8 @@ set(WRK2_SOURCES
 # Define executable
 add_executable(wrk2 ${WRK2_SOURCES})
 
-# Explicitly add the HdrHistogram_c library path
-set(HDRHISTOGRAM_LIB_PATH "${CMAKE_SOURCE_DIR}/third_party/HdrHistogram_c/libHdrHistogram_c.a")
-
-if(EXISTS "${HDRHISTOGRAM_LIB_PATH}")
-    message(STATUS "Found HdrHistogram_c library at ${HDRHISTOGRAM_LIB_PATH}")
-else()
-    message(FATAL_ERROR "HdrHistogram_c library not found at ${HDRHISTOGRAM_LIB_PATH}. Ensure it is built.")
-endif()
-
 # Link libraries
-target_link_libraries(wrk2 PRIVATE 
-    gflags 
-    glog 
-    ssl 
-    crypto 
-    "${HDRHISTOGRAM_LIB_PATH}" # Explicitly link HdrHistogram_c
-)
+target_link_libraries(wrk2 PRIVATE gflags glog ssl crypto)
 
 # Include directories
 target_include_directories(wrk2 PRIVATE
@@ -65,7 +50,6 @@ target_include_directories(wrk2 PRIVATE
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/deps/luajit/src" # For LuaJIT
     "${CMAKE_SOURCE_DIR}/third_party/gflags/include"
     "${CMAKE_SOURCE_DIR}/third_party/glog/src"
-    "${CMAKE_SOURCE_DIR}/third_party/HdrHistogram_c/include"
 )
 
 # Debug message to confirm the target creation
