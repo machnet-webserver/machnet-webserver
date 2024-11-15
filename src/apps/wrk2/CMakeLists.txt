@@ -6,80 +6,69 @@ project(juggler VERSION 0.0.1 DESCRIPTION "Packet Juggling framework in C++" LAN
 include(CTest)
 set(BUILD_TESTING OFF) # Disable testing for third-party modules
 
-# Find and configure GFlags
-set(BUILD_gflags_nothreads_LIBS ON)
-set(BUILD_gflags_LIBS ON)
+# Add unique subdirectory paths for dependencies
+set(GFLAGS_BINARY_DIR "${CMAKE_BINARY_DIR}/third_party/gflags_build")
+set(GLOG_BINARY_DIR "${CMAKE_BINARY_DIR}/third_party/glog_build")
+set(GTEST_BINARY_DIR "${CMAKE_BINARY_DIR}/third_party/googletest_build")
+set(BENCHMARK_BINARY_DIR "${CMAKE_BINARY_DIR}/third_party/googlebench_build")
+set(HDRHISTOGRAM_BINARY_DIR "${CMAKE_BINARY_DIR}/third_party/HdrHistogram_c_build")
+set(WRK2_BINARY_DIR "${CMAKE_BINARY_DIR}/src/apps/wrk2_build")
 
-# Check if third_party/gflags exists and include it
+# Find and configure GFlags
 if(EXISTS "${CMAKE_SOURCE_DIR}/third_party/gflags")
     if (NOT TARGET gflags)
-        add_subdirectory("${CMAKE_SOURCE_DIR}/third_party/gflags" "${CMAKE_BINARY_DIR}/third_party/gflags_build" EXCLUDE_FROM_ALL)
+        add_subdirectory("${CMAKE_SOURCE_DIR}/third_party/gflags" "${GFLAGS_BINARY_DIR}" EXCLUDE_FROM_ALL)
         include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/third_party/gflags/include")
-        message(STATUS "Configured GFlags from ${CMAKE_SOURCE_DIR}/third_party/gflags.")
+        message(STATUS "Configured GFlags.")
     endif()
 else()
-    message(FATAL_ERROR "third_party/gflags directory not found at ${CMAKE_SOURCE_DIR}/third_party/gflags.")
+    message(FATAL_ERROR "third_party/gflags directory not found.")
 endif()
 
 # Configure GLog
 if(EXISTS "${CMAKE_SOURCE_DIR}/third_party/glog")
     if (NOT TARGET glog)
-        add_subdirectory("${CMAKE_SOURCE_DIR}/third_party/glog" "${CMAKE_BINARY_DIR}/third_party/glog_build" EXCLUDE_FROM_ALL)
+        add_subdirectory("${CMAKE_SOURCE_DIR}/third_party/glog" "${GLOG_BINARY_DIR}" EXCLUDE_FROM_ALL)
         include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/third_party/glog/src")
-        include_directories(SYSTEM "${CMAKE_BINARY_DIR}/third_party/glog_build")
-        message(STATUS "Configured GLog from ${CMAKE_SOURCE_DIR}/third_party/glog.")
+        include_directories(SYSTEM "${GLOG_BINARY_DIR}")
+        message(STATUS "Configured GLog.")
     endif()
 else()
-    message(FATAL_ERROR "third_party/glog directory not found at ${CMAKE_SOURCE_DIR}/third_party/glog.")
+    message(FATAL_ERROR "third_party/glog directory not found.")
 endif()
 
 # Configure GoogleTest
 if(EXISTS "${CMAKE_SOURCE_DIR}/third_party/googletest")
     if (NOT TARGET gtest)
-        add_subdirectory("${CMAKE_SOURCE_DIR}/third_party/googletest" "${CMAKE_BINARY_DIR}/third_party/googletest_build" EXCLUDE_FROM_ALL)
+        add_subdirectory("${CMAKE_SOURCE_DIR}/third_party/googletest" "${GTEST_BINARY_DIR}" EXCLUDE_FROM_ALL)
         include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/third_party/googletest/googlemock/include")
-        message(STATUS "Configured GoogleTest from ${CMAKE_SOURCE_DIR}/third_party/googletest.")
+        message(STATUS "Configured GoogleTest.")
     endif()
 else()
     message(WARNING "third_party/googletest directory not found. Skipping.")
 endif()
 
 # Configure Google Benchmark
-set(BENCHMARK_ENABLE_INSTALL OFF)
-set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
 if(EXISTS "${CMAKE_SOURCE_DIR}/third_party/googlebench")
     if (NOT TARGET benchmark)
-        add_subdirectory("${CMAKE_SOURCE_DIR}/third_party/googlebench" "${CMAKE_BINARY_DIR}/third_party/googlebench_build" EXCLUDE_FROM_ALL)
+        add_subdirectory("${CMAKE_SOURCE_DIR}/third_party/googlebench" "${BENCHMARK_BINARY_DIR}" EXCLUDE_FROM_ALL)
         include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/third_party/googlebench/include")
-        message(STATUS "Configured Google Benchmark from ${CMAKE_SOURCE_DIR}/third_party/googlebench.")
+        message(STATUS "Configured Google Benchmark.")
     endif()
 else()
     message(WARNING "third_party/googlebench directory not found. Skipping.")
 endif()
 
 # Configure HdrHistogram
-set(HDR_HISTOGRAM_BUILD_PROGRAMS OFF CACHE BOOL "Minimize HDR histogram build")
-set(HDR_LOG_REQUIRED OFF CACHE BOOL "Disable HDR histogram's log to avoid zlib dependency")
 if(EXISTS "${CMAKE_SOURCE_DIR}/third_party/HdrHistogram_c")
     if (NOT TARGET hdr_histogram)
-        add_subdirectory("${CMAKE_SOURCE_DIR}/third_party/HdrHistogram_c" "${CMAKE_BINARY_DIR}/third_party/HdrHistogram_c_build" EXCLUDE_FROM_ALL)
+        add_subdirectory("${CMAKE_SOURCE_DIR}/third_party/HdrHistogram_c" "${HDRHISTOGRAM_BINARY_DIR}" EXCLUDE_FROM_ALL)
         include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/third_party/HdrHistogram_c/include/")
-        message(STATUS "Configured HdrHistogram from ${CMAKE_SOURCE_DIR}/third_party/HdrHistogram_c.")
+        message(STATUS "Configured HdrHistogram.")
     endif()
 else()
     message(WARNING "third_party/HdrHistogram_c directory not found. Skipping.")
 endif()
-
-# Configure xxHash (only include headers as needed)
-if(EXISTS "${CMAKE_SOURCE_DIR}/third_party/xxHash")
-    include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/third_party/xxHash")
-    message(STATUS "Configured xxHash headers.")
-else()
-    message(WARNING "third_party/xxHash directory not found. Skipping.")
-endif()
-
-# Enable main project testing only
-set(BUILD_TESTING ON)
 
 # Add core source directories
 if(EXISTS "${CMAKE_SOURCE_DIR}/src")
@@ -94,7 +83,7 @@ endif()
 # Add wrk2 target conditionally
 if(EXISTS "${CMAKE_SOURCE_DIR}/src/apps/wrk2")
     if (NOT TARGET wrk2)
-        add_subdirectory("${CMAKE_SOURCE_DIR}/src/apps/wrk2" "${CMAKE_BINARY_DIR}/src/apps/wrk2_build")
+        add_subdirectory("${CMAKE_SOURCE_DIR}/src/apps/wrk2" "${WRK2_BINARY_DIR}")
         message(STATUS "Added wrk2 target.")
     endif()
 else()
