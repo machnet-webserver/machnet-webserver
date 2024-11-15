@@ -36,7 +36,7 @@ static struct sock sock = {
     .close    = sock_close,
     .read     = sock_read,
     .write    = sock_write,
-    .readable = sock_readable
+    // .readable = sock_readable
 };
 
 // static struct sock sock = {
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
         sock.close    = ssl_close;
         sock.read     = ssl_read;
         sock.write    = ssl_write;
-        sock.readable = ssl_readable;
+        // sock.readable = ssl_readable;
     }
     // if (!strncmp("https", schema, 5)) {
     //     if ((cfg.ctx = ssl_init()) == NULL) {
