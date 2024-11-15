@@ -52,5 +52,6 @@ target_include_directories(wrk2 PRIVATE
     "${CMAKE_SOURCE_DIR}/third_party/glog/src"
 )
 
-# Remove unnecessary linking of HdrHistogram_c
+# Debug message
 message(STATUS "HdrHistogram_c source file used directly; no need for linking the library.")
+message(STATUS "wrk2 target successfully created.")
