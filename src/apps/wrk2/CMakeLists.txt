@@ -29,18 +29,17 @@ set(WRK2_SOURCES
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/aprintf.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/hdr_histogram.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/http_parser.c"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/main.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/net.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/script.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ssl.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/stats.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/tinymt64.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/units.c"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/wrk.c"
+    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/wrk.c" # Entry point
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/zmalloc.c"
 )
 
-# Define header files for clarity
+# Define header files for clarity (optional, but improves visibility)
 set(WRK2_HEADERS
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ae.h"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/aprintf.h"
@@ -59,7 +58,7 @@ set(WRK2_HEADERS
 )
 
 # Define executable
-add_executable(wrk2 ${WRK2_SOURCES} ${WRK2_HEADERS})
+add_executable(wrk2 ${WRK2_SOURCES})
 
 # Link libraries
 target_link_libraries(wrk2 PRIVATE gflags glog HdrHistogram_c ssl crypto)
