@@ -23,15 +23,17 @@ else ifeq ($(TARGET), freebsd)
 endif
 
 SRC  := wrk.c net.c ssl.c aprintf.c stats.c script.c units.c \
-		ae.c zmalloc.c http_parser.c tinymt64.c hdr_histogram.c
+		ae.c zmalloc.c http_parser.c tinymt64.c hdr_histogram.c \
+		machnet.c # Add machnet.c directly to the source list
 BIN  := wrk
 
 ODIR := obj
 OBJ  := $(patsubst %.c,$(ODIR)/%.o,$(SRC)) $(ODIR)/bytecode.o
 
 LDIR     = deps/luajit/src
+EXTDIR   = src/ext # Add path to machnet.h and related dependencies
 LIBS    := -lluajit $(LIBS)
-CFLAGS  += -I$(LDIR)
+CFLAGS  += -I$(LDIR) -I$(EXTDIR) # Add machnet.h directory to CFLAGS
 LDFLAGS += -L$(LDIR)
 
 all: $(BIN)
@@ -66,5 +68,5 @@ $(LDIR)/libluajit.a:
 .SUFFIXES: .c .o .lua
 
 vpath %.c   src
-vpath %.h   src
+vpath %.h   src src/ext # Add src/ext to header search paths
 vpath %.lua scripts
