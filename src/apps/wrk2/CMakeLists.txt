@@ -24,7 +24,6 @@ set(WRK2_SOURCES
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ae.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ae_epoll.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ae_evport.c"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ae_kqueue.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ae_select.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/aprintf.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/hdr_histogram.c"
