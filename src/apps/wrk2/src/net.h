@@ -19,6 +19,8 @@ struct sock {
     status (   *close)(connection *);
     status (    *read)(connection *, size_t *);
     status (   *write)(connection *, char *, size_t, size_t *);
+    size_t (*readable)(connection *); // Added this line
+
 };
 
 status sock_connect(connection *, char *);
