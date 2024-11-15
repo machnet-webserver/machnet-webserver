@@ -54,11 +54,14 @@ set(WRK2_HEADERS
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/zmalloc.h"
 )
 
+# Find Lua
+find_package(Lua REQUIRED)
+
 # Define executable
 add_executable(wrk2 ${WRK2_SOURCES})
 
 # Link libraries
-target_link_libraries(wrk2 PRIVATE gflags glog HdrHistogram_c ssl crypto)
+target_link_libraries(wrk2 PRIVATE gflags glog HdrHistogram_c ssl crypto ${LUA_LIBRARIES})
 
 # Include directories
 target_include_directories(wrk2 PRIVATE
@@ -66,7 +69,10 @@ target_include_directories(wrk2 PRIVATE
     "${CMAKE_SOURCE_DIR}/third_party/gflags/include"
     "${CMAKE_SOURCE_DIR}/third_party/glog/src"
     "${CMAKE_SOURCE_DIR}/third_party/HdrHistogram_c/include"
+    ${LUA_INCLUDE_DIR}
 )
 
 # Debug message to confirm the target creation
 message(STATUS "wrk2 target successfully created.")
+message(STATUS "Using Lua include directory: ${LUA_INCLUDE_DIR}")
+message(STATUS "Using Lua libraries: ${LUA_LIBRARIES}")
