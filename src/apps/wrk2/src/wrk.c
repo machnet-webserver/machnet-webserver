@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
         sock.close    = ssl_close;
         sock.read     = ssl_read;
         sock.write    = ssl_write;
-        // sock.readable = ssl_readable;
+        sock.readable = ssl_readable;
     }
     // if (!strncmp("https", schema, 5)) {
     //     if ((cfg.ctx = ssl_init()) == NULL) {
