@@ -40,8 +40,15 @@ set(WRK2_SOURCES
 # Define executable
 add_executable(wrk2 ${WRK2_SOURCES})
 
+# Find LuaJIT or Lua
+find_library(LUA_LIB NAMES luajit lua REQUIRED)
+message(STATUS "Lua library found: ${LUA_LIB}")
+
+find_path(LUA_INCLUDE_DIR NAMES lua.h PATH_SUFFIXES lua REQUIRED)
+message(STATUS "Lua include directory: ${LUA_INCLUDE_DIR}")
+
 # Link libraries
-target_link_libraries(wrk2 PRIVATE gflags glog ssl crypto machnet_shim)
+target_link_libraries(wrk2 PRIVATE gflags glog ssl crypto ${LUA_LIB} machnet_shim)
 
 # Include directories
 target_include_directories(wrk2 PRIVATE
@@ -49,10 +56,10 @@ target_include_directories(wrk2 PRIVATE
     "${CMAKE_SOURCE_DIR}/src/include"               # For pause.h
     "${CMAKE_SOURCE_DIR}/src/ext"                   # For machnet.h and related headers
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/deps/luajit/src" # For LuaJIT
+    "${LUA_INCLUDE_DIR}"                            # Lua headers
     "${CMAKE_SOURCE_DIR}/third_party/gflags/include"
     "${CMAKE_SOURCE_DIR}/third_party/glog/src"
 )
 
 # Debug message
-message(STATUS "HdrHistogram_c source file used directly; no need for linking the library.")
 message(STATUS "wrk2 target successfully created.")
