@@ -52,24 +52,6 @@ set(WRK2_SOURCES
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/zmalloc.c"
 )
 
-# Define header files for clarity (optional, but improves visibility)
-set(WRK2_HEADERS
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ae.h"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/aprintf.h"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/config.h"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/hdr_histogram.h"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/http_parser.h"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/main.h"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/net.h"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/script.h"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ssl.h"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/stats.h"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/tinymt64.h"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/units.h"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/wrk.h"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/zmalloc.h"
-)
-
 # Define executable
 add_executable(wrk2 ${WRK2_SOURCES})
 
