@@ -36,7 +36,7 @@ static struct sock sock = {
     .close    = sock_close,
     .read     = sock_read,
     .write    = sock_write,
-    // .readable = sock_readable
+    .readable = sock_readable
 };
 
 // static struct sock sock = {
