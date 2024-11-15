@@ -44,4 +44,4 @@ set(BUILD_TESTING ON)
 add_subdirectory(src)
 
 # Add wrk2_machnet (conditionally included if required)
-add_subdirectory(src/apps/wrk2_machnet EXCLUDE_FROM_ALL) # Exclude unless explicitly requested
+add_subdirectory(src/apps/wrk2 EXCLUDE_FROM_ALL) # Exclude unless explicitly requested
