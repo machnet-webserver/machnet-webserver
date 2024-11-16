@@ -1,5 +1,5 @@
 CFLAGS  := -std=c11 -Wall -O2 -D_REENTRANT -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE
-LIBS    := -lpthread -lm -lcrypto -lssl
+LIBS    := -lpthread -lm -lcrypto -lssl -luuid # Added -luuid for UUID functions
 
 TARGET  := $(shell uname -s | tr '[A-Z]' '[a-z]' 2>/dev/null || echo unknown)
 
@@ -22,7 +22,7 @@ endif
 
 SRC  := wrk.c net.c ssl.c aprintf.c stats.c script.c units.c \
         ae.c zmalloc.c http_parser.c tinymt64.c hdr_histogram.c \
-        ../../ext/machnet.c # Updated path for machnet.c
+        ../../ext/machnet.c # Correct relative path to machnet.c
 
 BIN  := wrk
 
@@ -32,7 +32,7 @@ OBJ  := $(SRC:%.c=$(ODIR)/%.o)
 LDIR     = deps/luajit/src
 EXTDIR   = ../../ext
 INCDIR   = src/include
-CFLAGS  += -I$(LDIR) -I$(EXTDIR) -I$(INCDIR)
+CFLAGS  += -I$(LDIR) -I$(EXTDIR) -I$(INCDIR) # Ensure ../ext is in include path
 LDFLAGS += -L$(LDIR)
 LIBS    := -lluajit $(LIBS)
 
