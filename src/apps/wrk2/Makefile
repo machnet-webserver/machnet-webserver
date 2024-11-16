@@ -39,28 +39,28 @@ all: $(BIN)
 
 clean:
     $(RM) $(BIN) $(ODIR)/*
-    @$(MAKE) -C deps/luajit clean
+	@$(MAKE) -C deps/luajit clean
 
 $(BIN): $(OBJ)
-    @echo LINK $(BIN)
-    @$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+	@echo LINK $(BIN)
+	@$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 $(OBJ): config.h Makefile $(LDIR)/libluajit.a | $(ODIR)
 
 $(ODIR):
-    @mkdir -p $@
+	@mkdir -p $@
 
 $(ODIR)/bytecode.o: src/wrk.lua
-    @echo LUAJIT $<
-    @$(SHELL) -c 'cd $(LDIR) && ./luajit -b $(CURDIR)/$< $(CURDIR)/$@'
+	@echo LUAJIT $<
+	@$(SHELL) -c 'cd $(LDIR) && ./luajit -b $(CURDIR)/$< $(CURDIR)/$@'
 
 $(ODIR)/%.o : %.c
-    @echo CC $<
-    @$(CC) $(CFLAGS) -c -o $@ $<
+	@echo CC $<
+	@$(CC) $(CFLAGS) -c -o $@ $<
 
 $(LDIR)/libluajit.a:
-    @echo Building LuaJIT...
-    @$(MAKE) -C $(LDIR) BUILDMODE=static
+	@echo Building LuaJIT...
+	@$(MAKE) -C $(LDIR) BUILDMODE=static
 
 .PHONY: all clean
 .SUFFIXES:
