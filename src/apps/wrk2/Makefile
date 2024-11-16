@@ -22,7 +22,7 @@ endif
 
 SRC  := wrk.c net.c ssl.c aprintf.c stats.c script.c units.c \
 		ae.c zmalloc.c http_parser.c tinymt64.c hdr_histogram.c \
-		machnet.c # Add machnet.c directly to the source list
+		machnet.c # Include machnet.c in the source list
 BIN  := wrk
 
 ODIR := obj
