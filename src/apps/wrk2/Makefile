@@ -30,8 +30,9 @@ ODIR := obj
 OBJ  := $(patsubst %.c,$(ODIR)/%.o,$(SRC)) $(ODIR)/bytecode.o
 
 LDIR     = deps/luajit/src
+EXTDIR   = ../ext
 INCDIR   = src/include
-CFLAGS  += -I$(LDIR) -I../ext -I$(INCDIR)  # Added ../ext for machnet.h
+CFLAGS  += -I$(LDIR) -I$(EXTDIR) -I$(INCDIR)  # Ensure inclusion of machnet.h from ../ext
 LDFLAGS += -L$(LDIR)
 LIBS    := -lluajit $(LIBS)
 
