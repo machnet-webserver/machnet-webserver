@@ -31,9 +31,10 @@ ODIR := obj
 OBJ  := $(patsubst %.c,$(ODIR)/%.o,$(SRC)) $(ODIR)/bytecode.o
 
 LDIR     = deps/luajit/src
-EXTDIR   = src/ext # Add path to machnet.h and related dependencies
+EXTDIR   = src/ext # Path to machnet.h and related files
+INCDIR   = src/include # Path to pause.h and additional headers
 LIBS    := -lluajit $(LIBS)
-CFLAGS  += -I$(LDIR) -I$(EXTDIR) # Add machnet.h directory to CFLAGS
+CFLAGS  += -I$(LDIR) -I$(EXTDIR) -I$(INCDIR) # Include directories for dependencies
 LDFLAGS += -L$(LDIR)
 
 all: $(BIN)
@@ -68,5 +69,5 @@ $(LDIR)/libluajit.a:
 .SUFFIXES: .c .o .lua
 
 vpath %.c   src
-vpath %.h   src src/ext # Add src/ext to header search paths
+vpath %.h   src src/ext src/include # Add src/include for pause.h
 vpath %.lua scripts
