@@ -36,7 +36,7 @@ static struct sock sock = {
     .close    = sock_close,
     .read     = sock_read,
     .write    = sock_write,
-    .readable = sock_readable
+    // .readable = sock_readable
 };
 
 // static struct sock sock = {
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
         sock.close    = ssl_close;
         sock.read     = ssl_read;
         sock.write    = ssl_write;
-        sock.readable = ssl_readable;
+        // sock.readable = ssl_readable;
     }
     // if (!strncmp("https", schema, 5)) {
     //     if ((cfg.ctx = ssl_init()) == NULL) {
@@ -687,7 +687,9 @@ static void socket_readable(aeEventLoop *loop, int fd, void *data, int mask) {
 
         if (http_parser_execute(&c->parser, &parser_settings, c->buf, n) != n) goto error;
         c->thread->bytes += n;
-    } while (n == RECVBUF && sock.readable(c) > 0);
+    } while (n == RECVBUF);
+
+    // } while (n == RECVBUF && sock.readable(c) > 0);
     // } while (n == RECVBUF && machnet_readable(c) > 0);  // Change `sock.readable` to `machnet_readable`
 
     return;

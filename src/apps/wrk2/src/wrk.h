@@ -26,6 +26,7 @@
 #define CALIBRATE_DELAY_MS  10000
 #define TIMEOUT_INTERVAL_MS 2000
 
+// Thread context structure
 typedef struct {
     pthread_t thread;
     aeEventLoop *loop;
@@ -47,12 +48,14 @@ typedef struct {
     struct connection *cs;
 } thread;
 
+// Buffer structure
 typedef struct {
     char  *buffer;
     size_t length;
     char  *cursor;
 } buffer;
 
+// Connection structure
 typedef struct connection {
     thread *thread;
     http_parser parser;
@@ -79,15 +82,17 @@ typedef struct connection {
     uint64_t actual_latency_start;
     bool has_pending;
     bool caught_up;
+
     // Internal tracking numbers (used purely for debugging):
     uint64_t latest_should_send_time;
     uint64_t latest_expected_start;
     uint64_t latest_connect;
     uint64_t latest_write;
 
-    void *channel_ctx;  // Added this for Machnet context
-    MachnetFlow_t machnet_flow; // Added this for Machnet flow information
+    void *channel_ctx;           // Machnet context
+    MachnetFlow_t machnet_flow;  // Machnet flow information
 
+    int (*readable)(struct connection *c); // Function pointer for readability check
 } connection;
 
 #endif /* WRK_H */
