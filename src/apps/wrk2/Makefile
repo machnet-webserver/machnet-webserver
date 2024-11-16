@@ -22,7 +22,7 @@ endif
 
 SRC  := wrk.c net.c ssl.c aprintf.c stats.c script.c units.c \
         ae.c zmalloc.c http_parser.c tinymt64.c hdr_histogram.c \
-        ../ext/machnet.c
+        ../../ext/machnet.c  # Updated relative path for machnet.c
 
 BIN  := wrk
 
@@ -30,43 +30,43 @@ ODIR := obj
 OBJ  := $(patsubst %.c,$(ODIR)/%.o,$(SRC)) $(ODIR)/bytecode.o
 
 LDIR     = deps/luajit/src
-EXTDIR   = ../ext
+EXTDIR   = ../../ext  # Updated relative path for ext directory
 INCDIR   = src/include
-CFLAGS  += -I$(LDIR) -I$(EXTDIR) -I$(INCDIR)  # Ensure inclusion of machnet.h from ../ext
+CFLAGS  += -I$(LDIR) -I$(EXTDIR) -I$(INCDIR)  # Ensure inclusion of machnet.h
 LDFLAGS += -L$(LDIR)
 LIBS    := -lluajit $(LIBS)
 
 all: $(BIN)
 
 clean:
-    $(RM) $(BIN) $(ODIR)/*
-    @$(MAKE) -C deps/luajit clean
+	$(RM) $(BIN) $(ODIR)/*
+	@$(MAKE) -C deps/luajit clean
 
 $(BIN): $(OBJ)
-    @echo LINK $(BIN)
-    @$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+	@echo LINK $(BIN)
+	@$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 $(OBJ): config.h Makefile $(LDIR)/libluajit.a | $(ODIR)
 
 $(ODIR):
-    @mkdir -p $@
+	@mkdir -p $@
 
 $(ODIR)/bytecode.o: src/wrk.lua
-    @echo LUAJIT $<
-    @$(SHELL) -c 'cd $(LDIR) && ./luajit -b $(CURDIR)/$< $(CURDIR)/$@'
+	@echo LUAJIT $<
+	@$(SHELL) -c 'cd $(LDIR) && ./luajit -b $(CURDIR)/$< $(CURDIR)/$@'
 
 $(ODIR)/%.o : %.c
-    @echo CC $<
-    @$(CC) $(CFLAGS) -c -o $@ $<
+	@echo CC $<
+	@$(CC) $(CFLAGS) -c -o $@ $<
 
 $(LDIR)/libluajit.a:
-    @echo Building LuaJIT...
-    @$(MAKE) -C $(LDIR) BUILDMODE=static
+	@echo Building LuaJIT...
+	@$(MAKE) -C $(LDIR) BUILDMODE=static
 
 .PHONY: all clean
 .SUFFIXES:
 .SUFFIXES: .c .o .lua
 
-vpath %.c   src ../ext
-vpath %.h   src ../ext src/include
+vpath %.c   src ../../ext  # Updated to include ../../ext for machnet.c
+vpath %.h   src ../../ext src/include  # Updated to include ../../ext for machnet.h
 vpath %.lua scripts
