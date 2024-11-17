@@ -34,7 +34,7 @@ set(WRK2_SOURCES
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ae.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/ae_epoll.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/aprintf.c"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/hdr_histogram.c"
+    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/hdr_histogram.c" # Use the local hdr_histogram.c
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/http_parser.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/net.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/script.c"
@@ -42,7 +42,7 @@ set(WRK2_SOURCES
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/stats.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/tinymt64.c"
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/units.c"
-    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/wrk.c"
+    "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/wrk.c" # Entry point
     "${CMAKE_SOURCE_DIR}/src/apps/wrk2/src/zmalloc.c"
     "${CMAKE_SOURCE_DIR}/src/ext/machnet.c" # Add machnet.c directly
 )
@@ -59,14 +59,7 @@ message(STATUS "Lua library found at: ${LUA_LIB}")
 message(STATUS "Lua include directory found at: ${LUA_INCLUDE_DIR}")
 
 # Link libraries
-target_link_libraries(wrk2 PRIVATE
-    gflags
-    glog
-    ssl
-    crypto
-    ${LUA_LIB}    # LuaJIT library
-    machnet_shim  # Machnet shim library
-)
+target_link_libraries(wrk2 PRIVATE gflags glog ssl crypto ${LUA_LIB} machnet_shim)
 
 # Include directories
 target_include_directories(wrk2 PRIVATE
