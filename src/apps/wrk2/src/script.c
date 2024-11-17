@@ -55,9 +55,18 @@ lua_State *script_create(char *file, char *url, char **headers) {
     luaL_openlibs(L);
     printf("[DEBUG] Lua state created and libraries opened.\n");
 
-    // Update Lua package.path to include the directory containing wrk.lua
-    luaL_dostring(L, "package.path = package.path .. ';./src/apps/wrk2/src/?.lua'");
-    printf("[DEBUG] Updated Lua package.path.\n");
+    // Update Lua package.path to include the absolute path of wrk.lua
+    char lua_path_cmd[512];
+    snprintf(lua_path_cmd, sizeof(lua_path_cmd),
+             "package.path = package.path .. ';%s/?.lua'",
+             "/home/tm3366/machnet-webserver/src/apps/wrk2/src");
+    if (luaL_dostring(L, lua_path_cmd)) {
+        const char *err = lua_tostring(L, -1);
+        fprintf(stderr, "[ERROR] Failed to set Lua package.path: %s\n", err);
+        lua_close(L);
+        return NULL;
+    }
+    printf("[DEBUG] Updated Lua package.path to include wrk.lua location.\n");
 
     // Load the wrk module
     if (luaL_dostring(L, "wrk = require \"wrk\"")) {
@@ -145,6 +154,7 @@ lua_State *script_create(char *file, char *url, char **headers) {
 
     return L;
 }
+
 
 
 bool script_resolve(lua_State *L, char *host, char *service) {
