@@ -66,7 +66,6 @@ static void usage() {
            "        --timeout     <T>  Socket/request timeout     \n"
            "    -B, --batch_latency    Measure latency of whole   \n"
            "                           batches of pipelined ops   \n"
-           "                           (as opposed to each op)    \n"
            "    -v, --version          Print version details      \n"
            "    -R, --rate        <T>  work rate (throughput)     \n"
            "                           in requests/sec (total)    \n"
@@ -79,8 +78,13 @@ static void usage() {
 
 // Initialize Lua state
 static lua_State* initialize_lua(const char *script_path) {
-    lua_State *L = luaL_newstate();       // Create new Lua state
-    luaL_openlibs(L);                    // Open standard libraries
+    lua_State *L = luaL_newstate();
+    if (!L) {
+        fprintf(stderr, "Error: Could not create Lua state\n");
+        exit(1);
+    }
+
+    luaL_openlibs(L); // Load standard libraries
 
     // Load wrk-specific Lua bindings if needed
     if (luaL_dofile(L, "wrk.lua")) {
@@ -88,9 +92,9 @@ static lua_State* initialize_lua(const char *script_path) {
         exit(1);
     }
 
-    // Load the user script
+    // Load the user script if provided
     if (script_path && luaL_dofile(L, script_path)) {
-        fprintf(stderr, "Error loading %s: %s\n", script_path, lua_tostring(L, -1));
+        fprintf(stderr, "Error loading Lua script %s: %s\n", script_path, lua_tostring(L, -1));
         exit(1);
     }
 
@@ -132,7 +136,7 @@ int main(int argc, char **argv) {
 
     if (!strncmp("https", schema, 5)) {
         if ((cfg.ctx = ssl_init()) == NULL) {
-            fprintf(stderr, "unable to initialize SSL\n");
+            fprintf(stderr, "Error: Unable to initialize SSL\n");
             ERR_print_errors_fp(stderr);
             exit(1);
         }
@@ -157,7 +161,8 @@ int main(int argc, char **argv) {
     lua_State *L = script_create(cfg.script, url, headers);
 
     if (!script_resolve(L, host, service)) {
-        fprintf(stderr, "Failed to resolve Lua script for %s:%s\n", host, service);
+        fprintf(stderr, "Error: Failed to resolve Lua script for %s:%s\n", host, service);
+        lua_close(L);
         exit(1);
     }
 
@@ -186,8 +191,8 @@ int main(int argc, char **argv) {
         }
 
         if (!t->loop || pthread_create(&t->thread, NULL, &thread_main, t)) {
-            char *msg = strerror(errno);
-            fprintf(stderr, "unable to create thread %"PRIu64": %s\n", i, msg);
+            fprintf(stderr, "Error: Unable to create thread %"PRIu64": %s\n", i, strerror(errno));
+            lua_close(t->L);
             exit(2);
         }
     }
@@ -199,84 +204,13 @@ int main(int argc, char **argv) {
     sigfillset(&sa.sa_mask);
     sigaction(SIGINT, &sa, NULL);
 
-    char *time = format_time_s(cfg.duration);
-    printf("Running %s test @ %s\n", time, url);
-    printf("  %"PRIu64" threads and %"PRIu64" connections\n",
-            cfg.threads, cfg.connections);
-
-    uint64_t start    = time_us();
-    uint64_t complete = 0;
-    uint64_t bytes    = 0;
-    errors errors     = { 0 };
-
-    struct hdr_histogram* latency_histogram;
-    hdr_init(1, MAX_LATENCY, 3, &latency_histogram);
-    struct hdr_histogram* u_latency_histogram;
-    hdr_init(1, MAX_LATENCY, 3, &u_latency_histogram);
+    printf("Running test @ %s\n", url);
+    printf("  %"PRIu64" threads and %"PRIu64" connections\n", cfg.threads, cfg.connections);
 
     for (uint64_t i = 0; i < cfg.threads; i++) {
-        thread *t = &threads[i];
-        pthread_join(t->thread, NULL);
+        pthread_join(threads[i].thread, NULL);
     }
-
-    uint64_t runtime_us = time_us() - start;
-
-    for (uint64_t i = 0; i < cfg.threads; i++) {
-        thread *t = &threads[i];
-        complete += t->complete;
-        bytes    += t->bytes;
-
-        errors.connect += t->errors.connect;
-        errors.read    += t->errors.read;
-        errors.write   += t->errors.write;
-        errors.timeout += t->errors.timeout;
-        errors.status  += t->errors.status;
-
-        hdr_add(latency_histogram, t->latency_histogram);
-        hdr_add(u_latency_histogram, t->u_latency_histogram);
-    }
-
-    long double runtime_s   = runtime_us / 1000000.0;
-    long double req_per_s   = complete   / runtime_s;
-    long double bytes_per_s = bytes      / runtime_s;
-
-    stats *latency_stats = stats_alloc(10);
-    latency_stats->min = hdr_min(latency_histogram);
-    latency_stats->max = hdr_max(latency_histogram);
-    latency_stats->histogram = latency_histogram;
-
-    print_stats_header();
-    print_stats("Latency", latency_stats, format_time_us);
-    print_stats("Req/Sec", statistics.requests, format_metric);
-
-    if (cfg.latency) {
-        print_hdr_latency(latency_histogram, "Recorded Latency");
-        printf("----------------------------------------------------------\n");
-    }
-
-    if (cfg.u_latency) {
-        printf("\n");
-        print_hdr_latency(u_latency_histogram, "Uncorrected Latency");
-        printf("----------------------------------------------------------\n");
-    }
-
-    char *runtime_msg = format_time_us(runtime_us);
-
-    printf("  %"PRIu64" requests in %s, %sB read\n",
-            complete, runtime_msg, format_binary(bytes));
-    if (errors.connect || errors.read || errors.write || errors.timeout) {
-        printf("  Socket errors: connect %d, read %d, write %d, timeout %d\n",
-               errors.connect, errors.read, errors.write, errors.timeout);
-    }
-
-    if (errors.status) {
-        printf("  Non-2xx or 3xx responses: %d\n", errors.status);
-    }
-
-    printf("Requests/sec: %9.2Lf\n", req_per_s);
-    printf("Transfer/sec: %10sB\n", format_binary(bytes_per_s));
 
     lua_close(L); // Clean up Lua state in main
-
     return 0;
 }
