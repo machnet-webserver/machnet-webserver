@@ -76,50 +76,6 @@ static void usage() {
            "  Time arguments may include a time unit (2s, 2m, 2h)\n");
 }
 
-// Initialize Lua state
-static lua_State* initialize_lua(const char *script_path) {
-    lua_State *L = luaL_newstate();
-    if (!L) {
-        fprintf(stderr, "Error: Could not create Lua state\n");
-        exit(1);
-    }
-
-    luaL_openlibs(L); // Load standard libraries
-
-    // Load wrk-specific Lua bindings if needed
-    if (luaL_dofile(L, "wrk.lua")) {
-        fprintf(stderr, "Error loading wrk.lua: %s\n", lua_tostring(L, -1));
-        exit(1);
-    }
-
-    // Load the user script if provided
-    if (script_path && luaL_dofile(L, script_path)) {
-        fprintf(stderr, "Error loading Lua script %s: %s\n", script_path, lua_tostring(L, -1));
-        exit(1);
-    }
-
-    return L;
-}
-
-// Create Lua script environment
-lua_State* script_create(const char *script_path, const char *url, char **headers) {
-    lua_State *L = initialize_lua(script_path);
-
-    // Pass arguments like URL and headers to Lua
-    lua_newtable(L);
-    for (int i = 0; headers[i]; i++) {
-        lua_pushnumber(L, i + 1);
-        lua_pushstring(L, headers[i]);
-        lua_settable(L, -3);
-    }
-    lua_setglobal(L, "headers");
-
-    lua_pushstring(L, url);
-    lua_setglobal(L, "url");
-
-    return L;
-}
-
 int main(int argc, char **argv) {
     char *url, **headers = zmalloc(argc * sizeof(char *));
     struct http_parser_url parts = {};
