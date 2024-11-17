@@ -102,7 +102,7 @@ static lua_State* initialize_lua(const char *script_path) {
 }
 
 // Create Lua script environment
-lua_State* script_create(const char *script_path, const char *url, char **headers) {
+lua_State *script_create(const char *, const char *, char **);
     lua_State *L = initialize_lua(script_path);
 
     // Pass arguments like URL and headers to Lua
