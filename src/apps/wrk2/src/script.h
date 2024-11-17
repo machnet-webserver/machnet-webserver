@@ -9,8 +9,7 @@
 #include "stats.h"
 #include "wrk.h"
 
-// Updated to match the definition in wrk.c
-lua_State *script_create(const char *, const char *, char **);
+lua_State *script_create(const char *, const char *, char **); // Unified declaration
 
 bool script_resolve(lua_State *, char *, char *);
 void script_setup(lua_State *, thread *);
