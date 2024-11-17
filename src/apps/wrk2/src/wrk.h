@@ -90,4 +90,7 @@ typedef struct connection {
 
 } connection;
 
+// Ensure the declaration matches the `wrk.c` implementation
+lua_State* script_create(char *script_path, char *url, char **headers);
+
 #endif /* WRK_H */
