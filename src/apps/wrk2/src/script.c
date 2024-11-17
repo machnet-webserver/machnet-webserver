@@ -46,17 +46,29 @@ static const struct luaL_reg threadlib[] = {
 };
 
 lua_State *script_create(char *file, char *url, char **headers) {
+    printf("[DEBUG] Creating Lua state.\n");
     lua_State *L = luaL_newstate();
+    if (!L) {
+        fprintf(stderr, "[ERROR] Failed to create Lua state.\n");
+        return NULL;
+    }
     luaL_openlibs(L);
     printf("[DEBUG] Lua state created and libraries opened.\n");
 
+    // Update Lua package.path to include the directory containing wrk.lua
+    luaL_dostring(L, "package.path = package.path .. ';./src/apps/wrk2/src/?.lua'");
+    printf("[DEBUG] Updated Lua package.path.\n");
+
+    // Load the wrk module
     if (luaL_dostring(L, "wrk = require \"wrk\"")) {
         const char *err = lua_tostring(L, -1);
         fprintf(stderr, "[ERROR] Failed to load wrk module: %s\n", err);
+        lua_close(L);
         return NULL;
     }
     printf("[DEBUG] wrk module loaded.\n");
 
+    // Register metatables
     luaL_newmetatable(L, "wrk.addr");
     luaL_register(L, NULL, addrlib);
     luaL_newmetatable(L, "wrk.stats");
@@ -65,18 +77,22 @@ lua_State *script_create(char *file, char *url, char **headers) {
     luaL_register(L, NULL, threadlib);
     printf("[DEBUG] Lua metatables created and registered.\n");
 
+    // Parse the URL
     struct http_parser_url parts = {};
     if (!script_parse_url(url, &parts)) {
         fprintf(stderr, "[ERROR] Failed to parse URL: %s\n", url);
+        lua_close(L);
         return NULL;
     }
     printf("[DEBUG] URL parsed successfully: %s\n", url);
 
+    // Determine path
     char *path = "/";
     if (parts.field_set & (1 << UF_PATH)) {
         path = &url[parts.field_data[UF_PATH].off];
     }
 
+    // Set Lua fields
     const table_field fields[] = {
         { "lookup",  LUA_TFUNCTION, script_wrk_lookup  },
         { "connect", LUA_TFUNCTION, script_wrk_connect },
@@ -88,6 +104,7 @@ lua_State *script_create(char *file, char *url, char **headers) {
     lua_getglobal(L, "wrk");
     if (!lua_istable(L, -1)) {
         fprintf(stderr, "[ERROR] 'wrk' is not a table in Lua state.\n");
+        lua_close(L);
         return NULL;
     }
     printf("[DEBUG] 'wrk' table retrieved from Lua state.\n");
@@ -98,9 +115,11 @@ lua_State *script_create(char *file, char *url, char **headers) {
     set_fields(L, 4, fields);
     printf("[DEBUG] Lua fields set (scheme, host, port, etc.).\n");
 
+    // Add headers to Lua
     lua_getfield(L, 4, "headers");
     if (!lua_istable(L, -1)) {
         fprintf(stderr, "[ERROR] 'wrk.headers' is not a table in Lua state.\n");
+        lua_close(L);
         return NULL;
     }
 
@@ -115,9 +134,11 @@ lua_State *script_create(char *file, char *url, char **headers) {
     lua_pop(L, 5);
     printf("[DEBUG] HTTP headers added to Lua state.\n");
 
+    // Load Lua script file if provided
     if (file && luaL_dofile(L, file)) {
         const char *cause = lua_tostring(L, -1);
         fprintf(stderr, "[ERROR] Failed to load Lua script '%s': %s\n", file, cause);
+        lua_close(L);
         return NULL;
     }
     printf("[DEBUG] Lua script file loaded: %s\n", file ? file : "(none)");
