@@ -139,22 +139,13 @@ lua_State *script_create(char *file, char *url, char **headers) {
         lua_close(L);
         return NULL;
     }
-
     printf("[DEBUG] 'wrk' table retrieved from Lua state.\n");
 
-    // Set individual fields: scheme, host, port
     set_field(L, 4, "scheme", push_url_part(L, url, &parts, UF_SCHEMA));
     set_field(L, 4, "host",   push_url_part(L, url, &parts, UF_HOST));
     set_field(L, 4, "port",   push_url_part(L, url, &parts, UF_PORT));
-
-    // Debug print for scheme, host, and port
-    printf("[DEBUG] Lua fields set: scheme=%s, host=%s, port=%s\n",
-        lua_tostring(L, -3), lua_tostring(L, -2), lua_tostring(L, -1));
-
-    // Set remaining fields using set_fields
     set_fields(L, 4, fields);
-    printf("[DEBUG] Remaining Lua fields set (e.g., connect, lookup, time_us).\n");
-
+    printf("[DEBUG] Lua fields set (scheme, host, port, etc.).\n");
 
     // Add headers to Lua
     lua_getfield(L, 4, "headers");
