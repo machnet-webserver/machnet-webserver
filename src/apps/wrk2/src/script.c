@@ -550,23 +550,22 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
     lua_getfield(L, -1, "host");  // wrk.host
     const char *remote_ip = lua_tostring(L, -1);
 
-    // Validate remote_ip
-    if (!remote_ip || strlen(remote_ip) == 0) {
-        fprintf(stderr, "[ERROR] script_wrk_connect: Invalid or empty `wrk.host` retrieved from Lua.\n");
-        lua_pushboolean(L, 0);
-        lua_pop(L, 2);  // Clean Lua stack
-        return 1;
-    }
-
     lua_getfield(L, -2, "port");  // wrk.port
     const char *port_str = lua_tostring(L, -1);
     uint16_t port = port_str ? (uint16_t)atoi(port_str) : 0;
 
-    // Validate port
-    if (!port_str || port == 0) {
-        fprintf(stderr, "[ERROR] script_wrk_connect: Invalid or empty `wrk.port` retrieved from Lua.\n");
+    // Debug print before connection attempt
+    printf("[DEBUG] Preparing connection: local_ip=%s, remote_ip=%s, port=%u\n", 
+           "10.10.1.1", 
+           remote_ip ? remote_ip : "(null)", 
+           port);
+
+    // Validate `remote_ip` and `port`
+    if (!remote_ip || !*remote_ip || port == 0) {
+        fprintf(stderr, "[ERROR] Invalid connection parameters: remote_ip=%s, port=%u\n",
+                remote_ip ? remote_ip : "(null)", port);
         lua_pushboolean(L, 0);
-        lua_pop(L, 3);  // Clean Lua stack
+        lua_pop(L, 2);  // Clean Lua stack
         return 1;
     }
 
@@ -582,7 +581,7 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
     if (!c.channel_ctx) {
         fprintf(stderr, "[ERROR] Failed to attach Machnet channel.\n");
         lua_pushboolean(L, 0);
-        lua_pop(L, 3);  // Clean Lua stack
+        lua_pop(L, 2);  // Clean Lua stack
         return 1;
     }
     printf("[DEBUG] Machnet channel attached successfully.\n");
@@ -600,9 +599,10 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
     }
 
     // Clean up Lua stack and return
-    lua_pop(L, 3);
+    lua_pop(L, 2);
     return 1;
 }
+
 
 
 

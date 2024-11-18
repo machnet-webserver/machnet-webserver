@@ -31,19 +31,25 @@
 //     }
 // }
 
-// Enhanced sock_connect with debug statements
-// Enhanced sock_connect with debug statements
 status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t remote_port) {
     MachnetFlow_t flow;
 
-    // Validate remote_ip
-    if (!remote_ip || strlen(remote_ip) == 0) {
-        fprintf(stderr, "[ERROR] Invalid remote IP in sock_connect.\n");
+    // Debug: Log the parameters received by the function
+    printf("[DEBUG] sock_connect received: local_ip=%s, remote_ip=%s, port=%u\n",
+           local_ip ? local_ip : "(null)", 
+           remote_ip ? remote_ip : "(null)", 
+           remote_port);
+
+    // Ensure `remote_ip` is valid
+    if (!remote_ip || !*remote_ip) {
+        fprintf(stderr, "[ERROR] sock_connect: Invalid remote_ip: %s\n",
+                remote_ip ? remote_ip : "(null)");
         return ERROR;
     }
 
-    // Debug remote_ip before further processing
-    printf("[DEBUG] Entering sock_connect with local IP: %s, remote IP: %s, port: %u\n", local_ip, remote_ip, remote_port);
+    // Debug: Entering the function
+    printf("[DEBUG] Entering sock_connect with local IP: %s, remote IP: %s, port: %u\n", 
+           local_ip, remote_ip, remote_port);
 
     // Attach a Machnet channel
     c->channel_ctx = machnet_attach();
@@ -53,12 +59,12 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
     }
     printf("[DEBUG] Machnet channel attached successfully (net.c).\n");
 
-    // Debug: check the state of connection object
+    // Debug: Check the state of the connection object before connecting
     printf("[DEBUG] Connection object state before machnet_connect:\n");
     printf("        c->channel_ctx: %p\n", c->channel_ctx);
-    printf("        c->machnet_flow: %d (initial state)\n", c->machnet_flow); // For integer type
+    printf("        c->machnet_flow: %d (initial state)\n", c->machnet_flow);
 
-    // Debug remote_ip and local_ip before machnet_connect
+    // Debug: Log parameters before calling machnet_connect
     printf("[DEBUG] Preparing to call machnet_connect with:\n");
     printf("        local_ip: %s\n", local_ip);
     printf("        remote_ip: %s\n", remote_ip);
@@ -67,19 +73,23 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
     // Call machnet_connect
     int connect_status = machnet_connect(c->channel_ctx, local_ip, remote_ip, remote_port, &flow);
 
-    // Debug: log the status returned by machnet_connect
+    // Debug: Log the status returned by machnet_connect
     printf("[DEBUG] machnet_connect returned with status: %d\n", connect_status);
 
     if (connect_status == 0) {
         c->machnet_flow = flow; // Store flow context
         printf("[DEBUG] Machnet connected successfully to %s:%u (net.c).\n", remote_ip, remote_port);
 
-        // Debug: verify flow context
+        // Debug: Verify flow context after a successful connection
+        printf("[DEBUG] Verified machnet_flow: %d\n", c->machnet_flow);
+
         return OK;
     } else {
-        fprintf(stderr, "[ERROR] Machnet connection failed to %s:%u: %s\n", remote_ip, remote_port, strerror(errno));
+        // Log error if connection fails
+        fprintf(stderr, "[ERROR] Machnet connection failed to %s:%u: %s\n", 
+                remote_ip, remote_port, strerror(errno));
 
-        // Debug: check state after failed connection
+        // Debug: Check state after failed connection
         printf("[DEBUG] Connection object state after failed machnet_connect:\n");
         printf("        c->channel_ctx: %p\n", c->channel_ctx);
 
@@ -87,6 +97,7 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
         return ERROR;
     }
 }
+
 
 
 
