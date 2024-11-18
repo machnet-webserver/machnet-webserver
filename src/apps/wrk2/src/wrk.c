@@ -86,18 +86,6 @@ static void usage() {
 
 int main(int argc, char **argv) {
 
-    // Global Machnet initialization
-    static bool machnet_initialized = false;
-    if (!machnet_initialized) {
-        if (machnet_init() != 0) {
-            fprintf(stderr, "[ERROR] Failed to initialize Machnet.\n");
-            exit(1);
-        }
-        machnet_initialized = true;
-        printf("[DEBUG] Machnet initialized globally.\n");
-    }
-    // End of machnet initialization
-
     char *url, **headers = zmalloc(argc * sizeof(char *));
     struct http_parser_url parts = {};
 
