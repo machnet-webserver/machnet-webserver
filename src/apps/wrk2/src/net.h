@@ -24,7 +24,7 @@ struct sock {
 
 };
 
-status sock_connect(connection *, char *);
+status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t remote_port);
 status sock_close(connection *);
 status sock_read(connection *, size_t *);
 status sock_write(connection *, char *, size_t, size_t *);
