@@ -531,12 +531,12 @@ static int script_wrk_lookup(lua_State *L) {
 
 static int script_wrk_connect(lua_State *L) {
     connection c;
-    const char *host = lua_tostring(L, -1); // Extract host from Lua
+    const char *host = lua_tostring(L, -1);
 
-    // Default to Machnet server if host is not provided
     if (!host || strlen(host) == 0) {
-        host = "10.10.1.1"; // Default to Machnet server IP
-        printf("[DEBUG] Defaulting host to 10.10.1.1.\n");
+        fprintf(stderr, "[ERROR] Host is invalid or empty in script_wrk_connect.\n");
+        lua_pushboolean(L, 0);
+        return 1;
     }
 
     printf("[DEBUG] Host in script_wrk_connect: %s\n", host);
@@ -550,9 +550,13 @@ static int script_wrk_connect(lua_State *L) {
     }
     printf("[DEBUG] Machnet channel attached successfully (script.c).\n");
 
+    // Default local_ip and remote_port; adjust as needed.
+    char *local_ip = "10.10.1.1";   // Replace with the actual local IP.
+    uint16_t remote_port = 888;     // Replace with the desired remote port.
+
     // Call sock_connect from net.c
     printf("[DEBUG] Calling sock_connect from script_wrk_connect (script.c)...\n");
-    if (sock_connect(&c, (char *)host) == OK) {
+    if (sock_connect(&c, local_ip, (char *)host, remote_port) == OK) {
         lua_pushboolean(L, 1); // Connected successfully
         printf("[DEBUG] sock_connect succeeded (script.c).\n");
     } else {
@@ -561,6 +565,7 @@ static int script_wrk_connect(lua_State *L) {
     }
     return 1;
 }
+
 
 
 
