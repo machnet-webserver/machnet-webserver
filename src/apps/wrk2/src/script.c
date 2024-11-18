@@ -531,7 +531,15 @@ static int script_wrk_lookup(lua_State *L) {
 
 static int script_wrk_connect(lua_State *L) {
     connection c;
-    const char *host = lua_tostring(L, -1);
+    const char *host = lua_tostring(L, -1); // Extract host from Lua
+
+    // Default to Machnet server if host is not provided
+    if (!host || strlen(host) == 0) {
+        host = "10.10.1.1"; // Default to Machnet server IP
+        printf("[DEBUG] Defaulting host to 10.10.1.1.\n");
+    }
+
+    printf("[DEBUG] Host in script_wrk_connect: %s\n", host);
 
     // Attach Machnet channel
     c.channel_ctx = machnet_attach();
