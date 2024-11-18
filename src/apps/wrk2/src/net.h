@@ -3,6 +3,7 @@
 
 #include "config.h"
 #include <stdint.h>
+#include <sys/time.h> 
 #include <openssl/ssl.h>
 #include "wrk.h"
 #include "machnet.h"  // for machnet API
