@@ -51,22 +51,23 @@ static const struct luaL_reg threadlib[] = {
 
 lua_State *script_create(char *file, char *url, char **headers) {
     // Initialize Machnet
-    printf("[DEBUG] Initializing Machnet...\n");
+    // printf("[DEBUG] Initializing Machnet...\n");
     // if (machnet_init() != 0) {
     //     fprintf(stderr, "[ERROR] Failed to initialize Machnet.\n");
     //     exit(1); // Exit if Machnet initialization fails
     // }
-    static bool machnet_initialized = false;
 
-    if (!machnet_initialized) {
-        if (machnet_init() != 0) {
-            fprintf(stderr, "[ERROR] Failed to initialize Machnet.\n");
-            exit(1);
-        }
-        machnet_initialized = true;
-    }
+    // static bool machnet_initialized = false;
 
-    printf("[DEBUG] Machnet initialized successfully.\n");
+    // if (!machnet_initialized) {
+    //     if (machnet_init() != 0) {
+    //         fprintf(stderr, "[ERROR] Failed to initialize Machnet.\n");
+    //         exit(1);
+    //     }
+    //     machnet_initialized = true;
+    // }
+
+    // printf("[DEBUG] Machnet initialized successfully.\n");
 
     // Create Lua state
     printf("[DEBUG] Creating Lua state.\n");
