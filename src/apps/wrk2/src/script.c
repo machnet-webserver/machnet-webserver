@@ -52,6 +52,10 @@ static const struct luaL_reg threadlib[] = {
 lua_State *script_create(char *file, char *url, char **headers) {
     // Initialize Machnet
     printf("[DEBUG] Initializing Machnet...\n");
+    // if (machnet_init() != 0) {
+    //     fprintf(stderr, "[ERROR] Failed to initialize Machnet.\n");
+    //     exit(1); // Exit if Machnet initialization fails
+    // }
     static bool machnet_initialized = false;
 
     if (!machnet_initialized) {
@@ -121,43 +125,6 @@ lua_State *script_create(char *file, char *url, char **headers) {
     }
 
     // Set Lua fields
-    lua_getglobal(L, "wrk");
-    if (!lua_istable(L, -1)) {
-        fprintf(stderr, "[ERROR] 'wrk' is not a table in Lua state.\n");
-        lua_close(L);
-        return NULL;
-    }
-    printf("[DEBUG] 'wrk' table retrieved from Lua state.\n");
-
-    const char *scheme = NULL, *host = NULL, *port = NULL;
-
-    if (push_url_part(L, url, &parts, UF_SCHEMA) == LUA_TSTRING) {
-        scheme = lua_tostring(L, -1);
-        lua_setfield(L, -2, "scheme");
-    } else {
-        lua_pop(L, 1);
-    }
-
-    if (push_url_part(L, url, &parts, UF_HOST) == LUA_TSTRING) {
-        host = lua_tostring(L, -1);
-        lua_setfield(L, -2, "host");
-    } else {
-        lua_pop(L, 1);
-    }
-
-    if (push_url_part(L, url, &parts, UF_PORT) == LUA_TSTRING) {
-        port = lua_tostring(L, -1);
-        lua_setfield(L, -2, "port");
-    } else {
-        lua_pop(L, 1);
-    }
-
-    printf("[DEBUG] Lua fields set: scheme=%s, host=%s, port=%s\n",
-           scheme ? scheme : "(null)",
-           host ? host : "(null)",
-           port ? port : "(null)");
-
-    // Set remaining fields
     const table_field fields[] = {
         { "lookup",  LUA_TFUNCTION, script_wrk_lookup  },
         { "connect", LUA_TFUNCTION, script_wrk_connect },
@@ -166,11 +133,31 @@ lua_State *script_create(char *file, char *url, char **headers) {
         { NULL,      0,             NULL               },
     };
 
-    set_fields(L, -1, fields);
+    lua_getglobal(L, "wrk");
+    if (!lua_istable(L, -1)) {
+        fprintf(stderr, "[ERROR] 'wrk' is not a table in Lua state.\n");
+        lua_close(L);
+        return NULL;
+    }
+
+    printf("[DEBUG] 'wrk' table retrieved from Lua state.\n");
+
+    // Set individual fields: scheme, host, port
+    set_field(L, 4, "scheme", push_url_part(L, url, &parts, UF_SCHEMA));
+    set_field(L, 4, "host",   push_url_part(L, url, &parts, UF_HOST));
+    set_field(L, 4, "port",   push_url_part(L, url, &parts, UF_PORT));
+
+    // Debug print for scheme, host, and port
+    printf("[DEBUG] Lua fields set: scheme=%s, host=%s, port=%s\n",
+        lua_tostring(L, -3), lua_tostring(L, -2), lua_tostring(L, -1));
+
+    // Set remaining fields using set_fields
+    set_fields(L, 4, fields);
     printf("[DEBUG] Remaining Lua fields set (e.g., connect, lookup, time_us).\n");
 
+
     // Add headers to Lua
-    lua_getfield(L, -1, "headers");
+    lua_getfield(L, 4, "headers");
     if (!lua_istable(L, -1)) {
         fprintf(stderr, "[ERROR] 'wrk.headers' is not a table in Lua state.\n");
         lua_close(L);
@@ -182,10 +169,10 @@ lua_State *script_create(char *file, char *url, char **headers) {
         if (p && p[1] == ' ') {
             lua_pushlstring(L, *h, p - *h);
             lua_pushstring(L, p + 2);
-            lua_settable(L, -3);
+            lua_settable(L, 5);
         }
     }
-    lua_pop(L, 1);
+    lua_pop(L, 5);
     printf("[DEBUG] HTTP headers added to Lua state.\n");
 
     // Load Lua script file if provided
@@ -199,7 +186,6 @@ lua_State *script_create(char *file, char *url, char **headers) {
 
     return L;
 }
-
 
 
 
@@ -658,36 +644,18 @@ int script_parse_url(char *url, struct http_parser_url *parts) {
 
 static int push_url_part(lua_State *L, char *url, struct http_parser_url *parts, enum http_parser_url_fields field) {
     int type = parts->field_set & (1 << field) ? LUA_TSTRING : LUA_TNIL;
-    uint16_t off = 0, len = 0;
-
+    uint16_t off, len;
     switch (type) {
         case LUA_TSTRING:
             off = parts->field_data[field].off;
             len = parts->field_data[field].len;
-
-            // Validate offset and length to prevent out-of-bounds access
-            if (off + len <= strlen(url)) {
-                lua_pushlstring(L, &url[off], len);
-                printf("[DEBUG] push_url_part: Successfully pushed field %d (offset: %u, length: %u): %.*s\n",
-                       field, off, len, len, &url[off]);
-            } else {
-                lua_pushnil(L);
-                fprintf(stderr, "[ERROR] push_url_part: Out-of-bounds access for field %d (offset: %u, length: %u, url length: %zu).\n",
-                        field, off, len, strlen(url));
-            }
+            lua_pushlstring(L, &url[off], len);
             break;
         case LUA_TNIL:
             lua_pushnil(L);
-            printf("[DEBUG] push_url_part: Field %d is not set in the URL.\n", field);
-            break;
-        default:
-            lua_pushnil(L);
-            fprintf(stderr, "[ERROR] push_url_part: Unknown field type %d for field %d.\n", type, field);
     }
-
     return type;
 }
-
 
 static void set_field(lua_State *L, int index, char *field, int type) {
     (void) type;
@@ -697,7 +665,6 @@ static void set_field(lua_State *L, int index, char *field, int type) {
 static void set_fields(lua_State *L, int index, const table_field *fields) {
     for (int i = 0; fields[i].name; i++) {
         table_field f = fields[i];
-        printf("[DEBUG] Setting field '%s' of type %d.\n", f.name, f.type); // Debug print
         switch (f.value == NULL ? LUA_TNIL : f.type) {
             case LUA_TFUNCTION:
                 lua_pushcfunction(L, (lua_CFunction) f.value);
@@ -715,7 +682,6 @@ static void set_fields(lua_State *L, int index, const table_field *fields) {
         lua_setfield(L, index, f.name);
     }
 }
-
 
 void buffer_append(buffer *b, const char *data, size_t len) {
     size_t used = b->cursor - b->buffer;
