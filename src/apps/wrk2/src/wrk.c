@@ -147,6 +147,30 @@ int main(int argc, char **argv) {
         fprintf(stderr, "unable to connect to %s:%s %s\n", host, service, msg);
         exit(1);
     }
+
+    // Debug the Lua state for `wrk.host` and `wrk.port` after creation
+    lua_getglobal(L, "wrk");
+
+    // Check `wrk.host`
+    lua_getfield(L, -1, "host");
+    if (!lua_isstring(L, -1)) {
+        fprintf(stderr, "[ERROR] 'wrk.host' missing or invalid after script creation.\n");
+    } else {
+        printf("[DEBUG] Initial wrk.host: %s\n", lua_tostring(L, -1));
+    }
+    lua_pop(L, 1);
+
+    // Check `wrk.port`
+    lua_getfield(L, -1, "port");
+    if (!lua_isstring(L, -1)) {
+        fprintf(stderr, "[ERROR] 'wrk.port' missing or invalid after script creation.\n");
+    } else {
+        printf("[DEBUG] Initial wrk.port: %s\n", lua_tostring(L, -1));
+    }
+    lua_pop(L, 1);
+
+    // Clean up Lua stack
+    lua_pop(L, 1);
     
     uint64_t connections = cfg.connections / cfg.threads;
     double throughput    = (double)cfg.rate / cfg.threads;
@@ -161,6 +185,21 @@ int main(int argc, char **argv) {
 
         t->L = script_create(cfg.script, url, headers);
         script_init(L, t, argc - optind, &argv[optind]);
+
+        // Validate Lua state in thread after initialization
+        lua_getglobal(t->L, "wrk");
+
+        lua_getfield(t->L, -1, "host");
+        printf("[DEBUG] Thread %"PRIu64" wrk.host: %s\n", i,
+            lua_isstring(t->L, -1) ? lua_tostring(t->L, -1) : "(null)");
+        lua_pop(t->L, 1);
+
+        lua_getfield(t->L, -1, "port");
+        printf("[DEBUG] Thread %"PRIu64" wrk.port: %s\n", i,
+            lua_isstring(t->L, -1) ? lua_tostring(t->L, -1) : "(null)");
+        lua_pop(t->L, 1);
+
+        lua_pop(t->L, 1);
 
         if (i == 0) {
             cfg.pipeline = script_verify_request(t->L);
@@ -179,6 +218,7 @@ int main(int argc, char **argv) {
         }
     }
 
+
     struct sigaction sa = {
         .sa_handler = handler,
         .sa_flags   = 0,
@@ -190,6 +230,24 @@ int main(int argc, char **argv) {
     printf("Running %s test @ %s\n", time, url);
     printf("  %"PRIu64" threads and %"PRIu64" connections\n",
             cfg.threads, cfg.connections);
+
+    // Validate Lua state after test starts
+    lua_getglobal(L, "wrk");
+
+    // Check `wrk.host`
+    lua_getfield(L, -1, "host");
+    printf("[DEBUG] wrk.host during test: %s\n",
+        lua_isstring(L, -1) ? lua_tostring(L, -1) : "(null)");
+    lua_pop(L, 1);
+
+    // Check `wrk.port`
+    lua_getfield(L, -1, "port");
+    printf("[DEBUG] wrk.port during test: %s\n",
+        lua_isstring(L, -1) ? lua_tostring(L, -1) : "(null)");
+    lua_pop(L, 1);
+
+    // Clean up Lua stack
+    lua_pop(L, 1);
 
     uint64_t start    = time_us();
     uint64_t complete = 0;
