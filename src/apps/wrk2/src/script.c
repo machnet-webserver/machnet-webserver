@@ -545,64 +545,44 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
     // Initialize a connection object
     connection c = {0};
 
-    // Retrieve `wrk.host` (remote_ip) and `wrk.port` (port) from Lua state
     lua_getglobal(L, "wrk");
-    lua_getfield(L, -1, "host");  // wrk.host
-    const char *remote_ip = lua_tostring(L, -1);
-    if (!remote_ip) {
-        fprintf(stderr, "[ERROR] script_wrk_connect: Failed to retrieve `wrk.host`.\n");
-        lua_pushboolean(L, 0);
-        lua_pop(L, 3);  // Clean Lua stack
-        return 1;
-    }
+    lua_getfield(L, -1, "host");
+    const char *host = lua_tostring(L, -1);
+    lua_getfield(L, -2, "port");
+    uint16_t port = (uint16_t)atoi(lua_tostring(L, -1));
 
-    lua_getfield(L, -2, "port");  // wrk.port
-    const char *port_str = lua_tostring(L, -1);
-    uint16_t port = port_str ? (uint16_t)atoi(port_str) : 0;
-    if (!port_str) {
-        fprintf(stderr, "[ERROR] script_wrk_connect: Failed to retrieve `wrk.port`.\n");
-        lua_pushboolean(L, 0);
-        lua_pop(L, 3);  // Clean Lua stack
-        return 1;
-    }
+    printf("[DEBUG] In script_wrk_connect: host=%s, port=%d\n", host, port);
 
-    // Debug retrieved values
-    printf("[DEBUG] script_wrk_connect: Retrieved from Lua - remote_ip=%s, port=%u\n",
-           remote_ip, port);
-
-    // Set local IP
-    const char *local_ip = "10.10.1.1";
-    printf("[DEBUG] script_wrk_connect: Using local_ip=%s\n", local_ip);
-
-    // Attach a Machnet channel
     c.channel_ctx = machnet_attach();
     if (!c.channel_ctx) {
         fprintf(stderr, "[ERROR] Failed to attach Machnet channel.\n");
         lua_pushboolean(L, 0);
-        lua_pop(L, 3);  // Clean Lua stack
+        lua_pop(L, 3); // Cleanup Lua stack
         return 1;
     }
+
     printf("[DEBUG] Machnet channel attached successfully.\n");
 
-    // Perform the connection using sock_connect
-    if (sock_connect(&c, local_ip, (char *)remote_ip, port) == OK) {
-        printf("[DEBUG] sock_connect succeeded: local_ip=%s, remote_ip=%s, port=%u\n",
-               local_ip, remote_ip, port);
-        lua_pushboolean(L, 1);
-    } else {
-        fprintf(stderr, "[ERROR] sock_connect failed: local_ip=%s, remote_ip=%s, port=%u\n",
-                local_ip, remote_ip, port);
+    if (thread->complete >= cfg->connections) {
+        printf("[DEBUG] Maximum connections reached. Not attempting new connection.\n");
         lua_pushboolean(L, 0);
-        machnet_detach(c.channel_ctx);  // Cleanup on failure
+        machnet_detach(c.channel_ctx); // Cleanup
+        lua_pop(L, 3); // Cleanup Lua stack
+        return 1;
     }
 
-    // Clean up Lua stack and return
-    lua_pop(L, 3);
+    printf("[DEBUG] Preparing to call sock_connect with host=%s, port=%d\n", host, port);
+
+    if (sock_connect(&c, "10.10.1.1", (char *)host, port) == OK) {
+        lua_pushboolean(L, 1);
+    } else {
+        lua_pushboolean(L, 0);
+        machnet_detach(c.channel_ctx); // Cleanup
+    }
+
+    lua_pop(L, 3); // Cleanup Lua stack
     return 1;
 }
-
-
-
 
 
 

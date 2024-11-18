@@ -75,6 +75,7 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
         printf("[DEBUG] Machnet connected successfully to %s:%u (net.c).\n", remote_ip, remote_port);
 
         // Debug: verify flow context
+        printf("[DEBUG] Flow context stored in c->machnet_flow: %d\n", c->machnet_flow); // For integer type
         return OK;
     } else {
         fprintf(stderr, "[ERROR] Machnet connection failed to %s:%u: %s\n", remote_ip, remote_port, strerror(errno));
