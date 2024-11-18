@@ -538,12 +538,14 @@ static int script_wrk_connect(lua_State *L) {
     lua_getfield(L, -1, "host");
     const char *host = lua_tostring(L, -1);
 
-    // Fallback to a default host if the retrieved host is invalid or empty
-    if (!host || strlen(host) == 0) {
-        host = "10.10.1.1"; // Default to your specific host
-        printf("[DEBUG] Defaulting host to 10.10.1.1 in script_wrk_connect.\n");
+    // Debug print for host
+    if (host) {
+        printf("[DEBUG] Host retrieved from Lua: %s\n", host);
+    } else {
+        fprintf(stderr, "[ERROR] Failed to retrieve host from Lua.\n");
+        lua_pop(L, 2); // Clean up Lua stack
+        return 1;
     }
-    printf("[DEBUG] Host retrieved from Lua state: %s\n", host);
 
     // Retrieve the 'wrk.port' field and convert to integer
     lua_getfield(L, -2, "port");
@@ -551,36 +553,41 @@ static int script_wrk_connect(lua_State *L) {
     if (lua_isstring(L, -1)) {
         const char *port_str = lua_tostring(L, -1);
         port = (uint16_t)atoi(port_str);
+        printf("[DEBUG] Port retrieved from Lua: %u\n", port);
+    } else {
+        printf("[DEBUG] Using default port: %u\n", port);
     }
-    printf("[DEBUG] Port retrieved from Lua state: %u\n", port);
+
+    // Debug print for host and port before further usage
+    printf("[DEBUG] Connecting to host: %s, port: %u\n", host, port);
 
     // Attach a Machnet channel
     c.channel_ctx = machnet_attach();
     if (!c.channel_ctx) {
         fprintf(stderr, "[ERROR] Failed to attach Machnet channel (script.c).\n");
         lua_pushboolean(L, 0);
-        lua_pop(L, 3); // Clean up the Lua stack
+        lua_pop(L, 3); // Clean up Lua stack
         return 1;
     }
     printf("[DEBUG] Machnet channel attached successfully (script.c).\n");
 
-    // Use the same IP for both local and remote in this case
+    // Debug local_ip before calling sock_connect
     const char *local_ip = "10.10.1.1";
-    printf("[DEBUG] Calling sock_connect for host: %s, local_ip: %s, port: %u (script.c)...\n", 
-           host, local_ip, port);
+    printf("[DEBUG] Preparing to call sock_connect with local_ip: %s, remote_ip: %s, port: %u\n", 
+           local_ip, host, port);
 
-    // Call sock_connect
+    // Call sock_connect and add debug output for results
     if (sock_connect(&c, local_ip, (char *)host, port) == OK) {
         lua_pushboolean(L, 1); // Connection successful
-        printf("[DEBUG] sock_connect succeeded (script.c).\n");
+        printf("[DEBUG] sock_connect succeeded for host: %s, port: %u\n", host, port);
     } else {
         lua_pushboolean(L, 0); // Connection failed
-        fprintf(stderr, "[ERROR] Failed to connect to host: %s (script.c).\n", host);
+        fprintf(stderr, "[ERROR] sock_connect failed for host: %s, port: %u\n", host, port);
         machnet_detach(c.channel_ctx); // Detach on failure
     }
 
-    // Clean up the Lua stack to maintain balance
-    lua_pop(L, 3); // Pop 'wrk', 'host', and 'port' from the Lua stack
+    // Clean up Lua stack and return
+    lua_pop(L, 3); // Pop 'wrk', 'host', and 'port' from Lua stack
     return 1;
 }
 

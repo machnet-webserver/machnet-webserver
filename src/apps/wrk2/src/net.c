@@ -31,15 +31,20 @@
 //     }
 // }
 
+// Enhanced sock_connect with debug statements
 status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t remote_port) {
     MachnetFlow_t flow;
 
+    // Validate remote_ip
     if (!remote_ip || strlen(remote_ip) == 0) {
         fprintf(stderr, "[ERROR] Invalid remote IP in sock_connect.\n");
         return ERROR;
     }
+
+    // Debug remote_ip before further processing
     printf("[DEBUG] Entering sock_connect with local IP: %s, remote IP: %s, port: %u\n", local_ip, remote_ip, remote_port);
 
+    // Attach a Machnet channel
     c->channel_ctx = machnet_attach();
     if (!c->channel_ctx) {
         fprintf(stderr, "[ERROR] Failed to attach Machnet channel (net.c): %s\n", strerror(errno));
@@ -47,14 +52,20 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
     }
     printf("[DEBUG] Machnet channel attached successfully (net.c).\n");
 
+    // Debug remote_ip and local_ip before machnet_connect
+    printf("[DEBUG] Preparing to call machnet_connect with local_ip: %s, remote_ip: %s, port: %u\n",
+           local_ip, remote_ip, remote_port);
+
+    // Call machnet_connect
     int connect_status = machnet_connect(c->channel_ctx, local_ip, remote_ip, remote_port, &flow);
+
     if (connect_status == 0) {
-        c->machnet_flow = flow;  // Store flow context
+        c->machnet_flow = flow; // Store flow context
         printf("[DEBUG] Machnet connected successfully to %s:%u (net.c).\n", remote_ip, remote_port);
         return OK;
     } else {
         fprintf(stderr, "[ERROR] Machnet connection failed to %s:%u: %s\n", remote_ip, remote_port, strerror(errno));
-        machnet_detach(c->channel_ctx);  // Cleanup on failure
+        machnet_detach(c->channel_ctx); // Cleanup on failure
         return ERROR;
     }
 }
@@ -109,7 +120,7 @@ status sock_read(connection *c, size_t *n) {
     ssize_t bytes_received = machnet_recv(c->channel_ctx, c->buf, sizeof(c->buf), &flow_info);
 
     if (bytes_received > 0) {
-        *n = (size_t) bytes_received;
+        *n = (size_t)bytes_received;
         printf("[DEBUG] Received %ld bytes (net.c).\n", bytes_received);
         return OK;
     } else if (bytes_received == 0) {
@@ -120,7 +131,6 @@ status sock_read(connection *c, size_t *n) {
         return ERROR;
     }
 }
-
 
 
 
