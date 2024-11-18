@@ -106,7 +106,7 @@ typedef struct config {
     char    *host;
     char    *script;
     SSL_CTX *ctx;
-} cfg;
+} config;
 
 // make cfg accessible globally??
 extern config cfg;

@@ -9,6 +9,8 @@
 // Max recordable latency of 1 day
 #define MAX_LATENCY 24L * 60 * 60 * 1000000
 
+config cfg;
+
 // this is moved to wrk.h
 // static struct config {
 //     uint64_t threads;
