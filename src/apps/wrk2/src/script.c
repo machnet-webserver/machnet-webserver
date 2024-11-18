@@ -59,7 +59,7 @@ lua_State *script_create(char *file, char *url, char **headers) {
     char lua_path_cmd[512];
     snprintf(lua_path_cmd, sizeof(lua_path_cmd),
              "package.path = package.path .. ';%s/?.lua'",
-             "/home/tm3366/machnet-webserver/src/apps/wrk2/src");
+             "/users/timmah/machnet-webserver/src/apps/wrk2/src");
     if (luaL_dostring(L, lua_path_cmd)) {
         const char *err = lua_tostring(L, -1);
         fprintf(stderr, "[ERROR] Failed to set Lua package.path: %s\n", err);
