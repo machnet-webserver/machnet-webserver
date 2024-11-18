@@ -6,7 +6,7 @@
 
 #include "net.h"
 
-#include "machnet.h"  // Add this at the top of net.c
+#include "machnet.h"  
 
 
 // status sock_connect(connection *c, char *host) {

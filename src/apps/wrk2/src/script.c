@@ -23,7 +23,8 @@ static int script_stats_get(lua_State *);
 static int script_thread_index(lua_State *);
 static int script_thread_newindex(lua_State *);
 static int script_wrk_lookup(lua_State *);
-static int script_wrk_connect(lua_State *);
+// static int script_wrk_connect(lua_State *);
+static int script_wrk_connect(lua_State *, thread *, struct config *);
 static int script_wrk_time_us(lua_State *);
 
 static void set_fields(lua_State *, int, const table_field *);
