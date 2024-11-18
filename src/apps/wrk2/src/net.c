@@ -33,6 +33,7 @@
 
 status sock_connect(connection *c, char *host) {
     MachnetFlow_t flow;
+    printf("[DEBUG] Entering sock_connect with host: %s (net.c).\n", host);
 
     // Attach Machnet channel
     c->channel_ctx = machnet_attach();
@@ -40,7 +41,7 @@ status sock_connect(connection *c, char *host) {
         fprintf(stderr, "[ERROR] Failed to attach Machnet channel (net.c).\n");
         return ERROR;
     }
-    printf("[DEBUG] Machnet channel attached successfully.\n");
+    printf("[DEBUG] Machnet channel attached successfully (net.c).\n");
 
     // Use machnet_connect to establish a connection
     int connect_status = machnet_connect(c->channel_ctx, NULL, host, 0, &flow);
@@ -48,13 +49,14 @@ status sock_connect(connection *c, char *host) {
     // Check the result of machnet_connect
     if (connect_status == 0) {
         c->machnet_flow = flow;  // Store the flow information in the connection
-        printf("[DEBUG] Machnet connected successfully to %s.\n", host);
+        printf("[DEBUG] Machnet connected successfully to %s (net.c).\n", host);
         return OK;
     } else {
-        fprintf(stderr, "[ERROR] Machnet connection failed to %s: %s\n", host, strerror(errno));
+        fprintf(stderr, "[ERROR] Machnet connection failed to %s: %s (net.c).\n", host, strerror(errno));
         return ERROR;
     }
 }
+
 
 
 

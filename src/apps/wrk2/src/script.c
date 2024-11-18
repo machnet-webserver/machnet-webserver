@@ -531,17 +531,20 @@ static int script_wrk_connect(lua_State *L) {
         fprintf(stderr, "[ERROR] Failed to attach Machnet channel (script.c).\n");
         return 1;
     }
-    printf("[DEBUG] Machnet channel attached successfully.\n");
+    printf("[DEBUG] Machnet channel attached successfully (script.c).\n");
 
     // Call sock_connect from net.c
+    printf("[DEBUG] Calling sock_connect from script_wrk_connect (script.c)...\n");
     if (sock_connect(&c, (char *)host) == OK) {
         lua_pushboolean(L, 1); // Connected successfully
+        printf("[DEBUG] sock_connect succeeded (script.c).\n");
     } else {
         lua_pushboolean(L, 0); // Failed to connect
-        fprintf(stderr, "[ERROR] Failed to connect to host: %s\n", host);
+        fprintf(stderr, "[ERROR] Failed to connect to host: %s (script.c).\n", host);
     }
     return 1;
 }
+
 
 
 static int script_wrk_time_us(lua_State *L) {
