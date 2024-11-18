@@ -571,6 +571,14 @@ static int script_wrk_connect(lua_State *L) {
     }
     printf("[DEBUG] Machnet channel attached successfully (script.c).\n");
 
+    if (c->thread->complete >= cfg.connections) {
+        printf("[DEBUG] Maximum connections reached. Not attempting new connection.\n");
+        lua_pushboolean(L, 0);
+        machnet_detach(c.channel_ctx); // Cleanup
+        return 1;
+    }
+
+
     // Debug local_ip before calling sock_connect
     const char *local_ip = "10.10.1.1";
     printf("[DEBUG] Preparing to call sock_connect with local_ip: %s, remote_ip: %s, port: %u\n", 
