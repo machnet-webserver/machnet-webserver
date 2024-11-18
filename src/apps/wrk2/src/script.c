@@ -549,28 +549,26 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
     lua_getglobal(L, "wrk");
     lua_getfield(L, -1, "host");  // wrk.host
     const char *remote_ip = lua_tostring(L, -1);
+    if (!remote_ip) {
+        fprintf(stderr, "[ERROR] script_wrk_connect: Failed to retrieve `wrk.host`.\n");
+        lua_pushboolean(L, 0);
+        lua_pop(L, 3);  // Clean Lua stack
+        return 1;
+    }
 
     lua_getfield(L, -2, "port");  // wrk.port
     const char *port_str = lua_tostring(L, -1);
     uint16_t port = port_str ? (uint16_t)atoi(port_str) : 0;
-
-    // Debug print before connection attempt
-    printf("[DEBUG] Preparing connection: local_ip=%s, remote_ip=%s, port=%u\n", 
-           "10.10.1.1", 
-           remote_ip ? remote_ip : "(null)", 
-           port);
-
-    // Validate `remote_ip` and `port`
-    if (!remote_ip || !*remote_ip || port == 0) {
-        fprintf(stderr, "[ERROR] Invalid connection parameters: remote_ip=%s, port=%u\n",
-                remote_ip ? remote_ip : "(null)", port);
+    if (!port_str) {
+        fprintf(stderr, "[ERROR] script_wrk_connect: Failed to retrieve `wrk.port`.\n");
         lua_pushboolean(L, 0);
-        lua_pop(L, 2);  // Clean Lua stack
+        lua_pop(L, 3);  // Clean Lua stack
         return 1;
     }
 
     // Debug retrieved values
-    printf("[DEBUG] script_wrk_connect: Retrieved from Lua - remote_ip=%s, port=%u\n", remote_ip, port);
+    printf("[DEBUG] script_wrk_connect: Retrieved from Lua - remote_ip=%s, port=%u\n",
+           remote_ip, port);
 
     // Set local IP
     const char *local_ip = "10.10.1.1";
@@ -581,29 +579,27 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
     if (!c.channel_ctx) {
         fprintf(stderr, "[ERROR] Failed to attach Machnet channel.\n");
         lua_pushboolean(L, 0);
-        lua_pop(L, 2);  // Clean Lua stack
+        lua_pop(L, 3);  // Clean Lua stack
         return 1;
     }
     printf("[DEBUG] Machnet channel attached successfully.\n");
 
     // Perform the connection using sock_connect
     if (sock_connect(&c, local_ip, (char *)remote_ip, port) == OK) {
-        printf("[DEBUG] sock_connect succeeded: local_ip=%s, remote_ip=%s, port=%u\n", 
+        printf("[DEBUG] sock_connect succeeded: local_ip=%s, remote_ip=%s, port=%u\n",
                local_ip, remote_ip, port);
         lua_pushboolean(L, 1);
     } else {
-        fprintf(stderr, "[ERROR] sock_connect failed: local_ip=%s, remote_ip=%s, port=%u\n", 
+        fprintf(stderr, "[ERROR] sock_connect failed: local_ip=%s, remote_ip=%s, port=%u\n",
                 local_ip, remote_ip, port);
         lua_pushboolean(L, 0);
         machnet_detach(c.channel_ctx);  // Cleanup on failure
     }
 
     // Clean up Lua stack and return
-    lua_pop(L, 2);
+    lua_pop(L, 3);
     return 1;
 }
-
-
 
 
 
@@ -661,27 +657,19 @@ int script_parse_url(char *url, struct http_parser_url *parts) {
 }
 
 static int push_url_part(lua_State *L, char *url, struct http_parser_url *parts, enum http_parser_url_fields field) {
-    if (!(parts->field_set & (1 << field))) {
-        lua_pushnil(L);
-        printf("[DEBUG] push_url_part: Field %d not set, pushed nil.\n", field);
-        return LUA_TNIL;
+    int type = parts->field_set & (1 << field) ? LUA_TSTRING : LUA_TNIL;
+    uint16_t off, len;
+    switch (type) {
+        case LUA_TSTRING:
+            off = parts->field_data[field].off;
+            len = parts->field_data[field].len;
+            lua_pushlstring(L, &url[off], len);
+            break;
+        case LUA_TNIL:
+            lua_pushnil(L);
     }
-
-    uint16_t off = parts->field_data[field].off;
-    uint16_t len = parts->field_data[field].len;
-    if (off + len > strlen(url)) {
-        fprintf(stderr, "[ERROR] push_url_part: Offset (%u) + length (%u) exceeds URL bounds (%zu). Field: %d\n",
-                off, len, strlen(url), field);
-        lua_pushnil(L);
-        return LUA_TNIL;
-    }
-
-    lua_pushlstring(L, &url[off], len);
-    printf("[DEBUG] push_url_part: Successfully pushed field %d (offset: %u, length: %u): %.*s\n",
-           field, off, len, len, &url[off]);
-    return LUA_TSTRING;
+    return type;
 }
-
 
 static void set_field(lua_State *L, int index, char *field, int type) {
     (void) type;
