@@ -7,6 +7,7 @@
 #include "stats.h"
 #include "zmalloc.h"
 #include "net.h"
+#include "wrk.h"
 
 
 typedef struct {
@@ -22,7 +23,7 @@ static int script_stats_get(lua_State *);
 static int script_thread_index(lua_State *);
 static int script_thread_newindex(lua_State *);
 static int script_wrk_lookup(lua_State *);
-static int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg);
+static int script_wrk_connect(lua_State *);
 static int script_wrk_time_us(lua_State *);
 
 static void set_fields(lua_State *, int, const table_field *);

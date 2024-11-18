@@ -9,22 +9,23 @@
 // Max recordable latency of 1 day
 #define MAX_LATENCY 24L * 60 * 60 * 1000000
 
-static struct config {
-    uint64_t threads;
-    uint64_t connections;
-    uint64_t duration;
-    uint64_t timeout;
-    uint64_t pipeline;
-    uint64_t rate;
-    uint64_t delay_ms;
-    bool     latency;
-    bool     u_latency;
-    bool     dynamic;
-    bool     record_all_responses;
-    char    *host;
-    char    *script;
-    SSL_CTX *ctx;
-} cfg;
+// this is moved to wrk.h
+// static struct config {
+//     uint64_t threads;
+//     uint64_t connections;
+//     uint64_t duration;
+//     uint64_t timeout;
+//     uint64_t pipeline;
+//     uint64_t rate;
+//     uint64_t delay_ms;
+//     bool     latency;
+//     bool     u_latency;
+//     bool     dynamic;
+//     bool     record_all_responses;
+//     char    *host;
+//     char    *script;
+//     SSL_CTX *ctx;
+// } cfg;
 
 static struct {
     stats *requests;

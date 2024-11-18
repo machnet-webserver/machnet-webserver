@@ -90,4 +90,25 @@ typedef struct connection {
 
 } connection;
 
+// Added struct config below existing definitions
+typedef struct config {
+    uint64_t threads;
+    uint64_t connections;
+    uint64_t duration;
+    uint64_t timeout;
+    uint64_t pipeline;
+    uint64_t rate;
+    uint64_t delay_ms;
+    bool     latency;
+    bool     u_latency;
+    bool     dynamic;
+    bool     record_all_responses;
+    char    *host;
+    char    *script;
+    SSL_CTX *ctx;
+} config;
+
+// make cfg accessible globally??
+extern config cfg;
+
 #endif /* WRK_H */
