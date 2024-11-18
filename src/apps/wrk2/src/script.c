@@ -519,15 +519,28 @@ static int script_wrk_lookup(lua_State *L) {
 }
 
 static int script_wrk_connect(lua_State *L) {
-    struct addrinfo *addr = checkaddr(L);
-    int fd, connected = 0;
-    if ((fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol)) != -1) {
-        connected = connect(fd, addr->ai_addr, addr->ai_addrlen) == 0;
-        close(fd);
+    connection c;
+    const char *host = lua_tostring(L, -1);
+
+    // Attach Machnet channel
+    c.channel_ctx = machnet_attach();
+    if (!c.channel_ctx) {
+        lua_pushboolean(L, 0);
+        fprintf(stderr, "[ERROR] Failed to attach Machnet channel.\n");
+        return 1;
     }
-    lua_pushboolean(L, connected);
+    printf("[DEBUG] Machnet channel attached successfully.\n");
+
+    // Call sock_connect from net.c
+    if (sock_connect(&c, (char *)host) == OK) {
+        lua_pushboolean(L, 1); // Connected successfully
+    } else {
+        lua_pushboolean(L, 0); // Failed to connect
+        fprintf(stderr, "[ERROR] Failed to connect to host: %s\n", host);
+    }
     return 1;
 }
+
 
 static int script_wrk_time_us(lua_State *L) {
     struct timeval tv;
