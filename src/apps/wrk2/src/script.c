@@ -551,8 +551,6 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
     lua_getfield(L, -2, "port");
     uint16_t port = (uint16_t)atoi(lua_tostring(L, -1));
 
-    printf("[DEBUG] In script_wrk_connect: host=%s, port=%d\n", host, port);
-
     c.channel_ctx = machnet_attach();
     if (!c.channel_ctx) {
         fprintf(stderr, "[ERROR] Failed to attach Machnet channel.\n");
@@ -561,8 +559,6 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
         return 1;
     }
 
-    printf("[DEBUG] Machnet channel attached successfully.\n");
-
     if (thread->complete >= cfg->connections) {
         printf("[DEBUG] Maximum connections reached. Not attempting new connection.\n");
         lua_pushboolean(L, 0);
@@ -570,8 +566,6 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
         lua_pop(L, 3); // Cleanup Lua stack
         return 1;
     }
-
-    printf("[DEBUG] Preparing to call sock_connect with host=%s, port=%d\n", host, port);
 
     if (sock_connect(&c, "10.10.1.1", (char *)host, port) == OK) {
         lua_pushboolean(L, 1);

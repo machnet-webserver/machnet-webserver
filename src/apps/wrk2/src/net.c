@@ -32,7 +32,6 @@
 // }
 
 // Enhanced sock_connect with debug statements
-// Enhanced sock_connect with debug statements
 status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t remote_port) {
     MachnetFlow_t flow;
 
@@ -53,42 +52,23 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
     }
     printf("[DEBUG] Machnet channel attached successfully (net.c).\n");
 
-    // Debug: check the state of connection object
-    printf("[DEBUG] Connection object state before machnet_connect:\n");
-    printf("        c->channel_ctx: %p\n", c->channel_ctx);
-    printf("        c->machnet_flow: %d (initial state)\n", c->machnet_flow); // For integer type
-
     // Debug remote_ip and local_ip before machnet_connect
-    printf("[DEBUG] Preparing to call machnet_connect with:\n");
-    printf("        local_ip: %s\n", local_ip);
-    printf("        remote_ip: %s\n", remote_ip);
-    printf("        port: %u\n", remote_port);
+    printf("[DEBUG] Preparing to call machnet_connect with local_ip: %s, remote_ip: %s, port: %u\n",
+           local_ip, remote_ip, remote_port);
 
     // Call machnet_connect
     int connect_status = machnet_connect(c->channel_ctx, local_ip, remote_ip, remote_port, &flow);
 
-    // Debug: log the status returned by machnet_connect
-    printf("[DEBUG] machnet_connect returned with status: %d\n", connect_status);
-
     if (connect_status == 0) {
         c->machnet_flow = flow; // Store flow context
         printf("[DEBUG] Machnet connected successfully to %s:%u (net.c).\n", remote_ip, remote_port);
-
-        // Debug: verify flow context
-        printf("[DEBUG] Flow context stored in c->machnet_flow: %d\n", c->machnet_flow); // For integer type
         return OK;
     } else {
         fprintf(stderr, "[ERROR] Machnet connection failed to %s:%u: %s\n", remote_ip, remote_port, strerror(errno));
-
-        // Debug: check state after failed connection
-        printf("[DEBUG] Connection object state after failed machnet_connect:\n");
-        printf("        c->channel_ctx: %p\n", c->channel_ctx);
-
         machnet_detach(c->channel_ctx); // Cleanup on failure
         return ERROR;
     }
 }
-
 
 
 

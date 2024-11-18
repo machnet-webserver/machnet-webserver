@@ -231,35 +231,23 @@ int main(int argc, char **argv) {
     printf("  %"PRIu64" threads and %"PRIu64" connections\n",
             cfg.threads, cfg.connections);
 
-    // Debugging Lua state before starting the test
+    // Validate Lua state after test starts
     lua_getglobal(L, "wrk");
 
-    // Recheck `wrk.host`
+    // Check `wrk.host`
     lua_getfield(L, -1, "host");
-    if (!lua_isstring(L, -1)) {
-        fprintf(stderr, "[ERROR] Lua state corrupted: 'wrk.host' is missing or invalid.\n");
-    } else {
-        printf("[DEBUG] Final wrk.host before test: %s\n", lua_tostring(L, -1));
-    }
+    printf("[DEBUG] wrk.host during test: %s\n",
+        lua_isstring(L, -1) ? lua_tostring(L, -1) : "(null)");
     lua_pop(L, 1);
 
-    // Recheck `wrk.port`
+    // Check `wrk.port`
     lua_getfield(L, -1, "port");
-    if (!lua_isstring(L, -1)) {
-        fprintf(stderr, "[ERROR] Lua state corrupted: 'wrk.port' is missing or invalid.\n");
-    } else {
-        printf("[DEBUG] Final wrk.port before test: %s\n", lua_tostring(L, -1));
-    }
+    printf("[DEBUG] wrk.port during test: %s\n",
+        lua_isstring(L, -1) ? lua_tostring(L, -1) : "(null)");
     lua_pop(L, 1);
 
     // Clean up Lua stack
     lua_pop(L, 1);
-
-    char *time = format_time_s(cfg.duration);
-    printf("Running %s test @ %s\n", time, url);
-    printf("  %"PRIu64" threads and %"PRIu64" connections\n",
-            cfg.threads, cfg.connections);
-
 
     uint64_t start    = time_us();
     uint64_t complete = 0;
