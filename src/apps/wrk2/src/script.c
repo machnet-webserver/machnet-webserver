@@ -542,43 +542,52 @@ static int script_wrk_lookup(lua_State *L) {
 }
 
 int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
+    // Initialize a connection object
     connection c = {0};
 
+    // Retrieve `wrk.host` (remote_ip) and `wrk.port` (port) from Lua state
     lua_getglobal(L, "wrk");
-    lua_getfield(L, -1, "host");
+    lua_getfield(L, -1, "host");  // wrk.host
     const char *remote_ip = lua_tostring(L, -1);
-    lua_getfield(L, -2, "port");
+
+    lua_getfield(L, -2, "port");  // wrk.port
     uint16_t port = (uint16_t)atoi(lua_tostring(L, -1));
 
-    // Debug print
-    printf("[DEBUG] script_wrk_connect: Retrieved from Lua - remote_ip=%s, port=%u\n", remote_ip, port);
+    // Debug retrieved values
+    printf("[DEBUG] script_wrk_connect: Retrieved from Lua - remote_ip=%s, port=%u\n", 
+           remote_ip ? remote_ip : "(null)", port);
 
+    // Set local IP
     const char *local_ip = "10.10.1.1";
-
     printf("[DEBUG] script_wrk_connect: Using local_ip=%s\n", local_ip);
 
+    // Attach a Machnet channel
     c.channel_ctx = machnet_attach();
     if (!c.channel_ctx) {
         fprintf(stderr, "[ERROR] Failed to attach Machnet channel.\n");
         lua_pushboolean(L, 0);
-        lua_pop(L, 3);
+        lua_pop(L, 3);  // Clean Lua stack
         return 1;
     }
-
     printf("[DEBUG] Machnet channel attached successfully.\n");
 
+    // Perform the connection using sock_connect
     if (sock_connect(&c, local_ip, (char *)remote_ip, port) == OK) {
-        printf("[DEBUG] sock_connect succeeded: local_ip=%s, remote_ip=%s, port=%u\n", local_ip, remote_ip, port);
+        printf("[DEBUG] sock_connect succeeded: local_ip=%s, remote_ip=%s, port=%u\n", 
+               local_ip, remote_ip, port);
         lua_pushboolean(L, 1);
     } else {
-        fprintf(stderr, "[ERROR] sock_connect failed: local_ip=%s, remote_ip=%s, port=%u\n", local_ip, remote_ip, port);
+        fprintf(stderr, "[ERROR] sock_connect failed: local_ip=%s, remote_ip=%s, port=%u\n", 
+                local_ip, remote_ip, port);
         lua_pushboolean(L, 0);
-        machnet_detach(c.channel_ctx);
+        machnet_detach(c.channel_ctx);  // Cleanup on failure
     }
 
+    // Clean up Lua stack and return
     lua_pop(L, 3);
     return 1;
 }
+
 
 
 
