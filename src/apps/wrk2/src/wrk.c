@@ -292,6 +292,10 @@ void *thread_main(void *arg) {
     connection *c = thread->cs;
 
     for (uint64_t i = 0; i < thread->connections; i++, c++) {
+        if (i >= cfg.connections) {  // Check if max connections are reached
+            printf("[DEBUG] Max connections reached: %lu\n", cfg.connections);
+            break;
+        }
         c->thread     = thread;
         c->ssl        = cfg.ctx ? SSL_new(cfg.ctx) : NULL;
         c->request    = request;
@@ -318,6 +322,7 @@ void *thread_main(void *arg) {
 
     return NULL;
 }
+
 
 static int connect_socket(thread *thread, connection *c) {
     struct addrinfo *addr = thread->addr;
