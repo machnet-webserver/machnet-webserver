@@ -547,12 +547,15 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
 
     lua_getglobal(L, "wrk");
     lua_getfield(L, -1, "host");
-    const char *host = lua_tostring(L, -1);
+    const char *remote_ip = lua_tostring(L, -1); // wrk.host is used for remote_ip
     lua_getfield(L, -2, "port");
     uint16_t port = (uint16_t)atoi(lua_tostring(L, -1));
 
-    printf("[DEBUG] In script_wrk_connect: host=%s, port=%d\n", host, port);
+    const char *local_ip = "10.10.1.1"; // Explicitly set the local_ip
 
+    printf("[DEBUG] In script_wrk_connect: local_ip=%s, remote_ip=%s, port=%u\n", local_ip, remote_ip, port);
+
+    // Attach Machnet channel
     c.channel_ctx = machnet_attach();
     if (!c.channel_ctx) {
         fprintf(stderr, "[ERROR] Failed to attach Machnet channel.\n");
@@ -563,6 +566,7 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
 
     printf("[DEBUG] Machnet channel attached successfully.\n");
 
+    // Check if max connections are reached
     if (thread->complete >= cfg->connections) {
         printf("[DEBUG] Maximum connections reached. Not attempting new connection.\n");
         lua_pushboolean(L, 0);
@@ -571,9 +575,9 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
         return 1;
     }
 
-    printf("[DEBUG] Preparing to call sock_connect with host=%s, port=%d\n", host, port);
-
-    if (sock_connect(&c, "10.10.1.1", (char *)host, port) == OK) {
+    // Call sock_connect with explicitly set local_ip and remote_ip
+    printf("[DEBUG] Preparing to call sock_connect with local_ip=%s, remote_ip=%s, port=%u\n", local_ip, remote_ip, port);
+    if (sock_connect(&c, local_ip, (char *)remote_ip, port) == OK) {
         lua_pushboolean(L, 1);
     } else {
         lua_pushboolean(L, 0);

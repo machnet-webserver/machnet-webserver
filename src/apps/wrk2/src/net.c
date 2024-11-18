@@ -41,20 +41,25 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
         return ERROR;
     }
 
-    // Debug remote_ip before further processing
-    printf("[DEBUG] Entering sock_connect with local IP: %s, remote IP: %s, port: %u\n", local_ip, remote_ip, remote_port);
+    // Default local_ip if not provided
+    if (!local_ip || strlen(local_ip) == 0) {
+        local_ip = "10.10.1.1"; // Fallback to default local IP
+        printf("[DEBUG] Defaulting local_ip to %s (net.c).\n", local_ip);
+    }
+
+    // Log entering sock_connect
+    printf("[DEBUG] Entering sock_connect with local_ip=%s, remote_ip=%s, port=%u\n", local_ip, remote_ip, remote_port);
 
     // Attach a Machnet channel
     c->channel_ctx = machnet_attach();
     if (!c->channel_ctx) {
-        fprintf(stderr, "[ERROR] Failed to attach Machnet channel (net.c): %s\n", strerror(errno));
+        fprintf(stderr, "[ERROR] Failed to attach Machnet channel: %s\n", strerror(errno));
         return ERROR;
     }
     printf("[DEBUG] Machnet channel attached successfully (net.c).\n");
 
-    // Debug remote_ip and local_ip before machnet_connect
-    printf("[DEBUG] Preparing to call machnet_connect with local_ip: %s, remote_ip: %s, port: %u\n",
-           local_ip, remote_ip, remote_port);
+    // Log before calling machnet_connect
+    printf("[DEBUG] Preparing to call machnet_connect with local_ip=%s, remote_ip=%s, port=%u\n", local_ip, remote_ip, remote_port);
 
     // Call machnet_connect
     int connect_status = machnet_connect(c->channel_ctx, local_ip, remote_ip, remote_port, &flow);
@@ -64,11 +69,17 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
         printf("[DEBUG] Machnet connected successfully to %s:%u (net.c).\n", remote_ip, remote_port);
         return OK;
     } else {
+        // Log machnet_connect failure
         fprintf(stderr, "[ERROR] Machnet connection failed to %s:%u: %s\n", remote_ip, remote_port, strerror(errno));
-        machnet_detach(c->channel_ctx); // Cleanup on failure
+
+        // Cleanup channel on failure
+        machnet_detach(c->channel_ctx);
+        printf("[DEBUG] Machnet channel detached due to connection failure (net.c).\n");
+
         return ERROR;
     }
 }
+
 
 
 
