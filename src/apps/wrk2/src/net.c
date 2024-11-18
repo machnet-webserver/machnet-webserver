@@ -56,7 +56,7 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
     // Debug: check the state of connection object
     printf("[DEBUG] Connection object state before machnet_connect:\n");
     printf("        c->channel_ctx: %p\n", c->channel_ctx);
-    printf("        c->machnet_flow: %p (initial state)\n", (void *)c->machnet_flow);
+    printf("        c->machnet_flow: %d (initial state)\n", c->machnet_flow); // For integer type
 
     // Debug remote_ip and local_ip before machnet_connect
     printf("[DEBUG] Preparing to call machnet_connect with:\n");
@@ -75,7 +75,7 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
         printf("[DEBUG] Machnet connected successfully to %s:%u (net.c).\n", remote_ip, remote_port);
 
         // Debug: verify flow context
-        printf("[DEBUG] Flow context stored in c->machnet_flow: %p\n", (void *)c->machnet_flow);
+        printf("[DEBUG] Flow context stored in c->machnet_flow: %d\n", c->machnet_flow); // For integer type
         return OK;
     } else {
         fprintf(stderr, "[ERROR] Machnet connection failed to %s:%u: %s\n", remote_ip, remote_port, strerror(errno));
