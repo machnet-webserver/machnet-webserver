@@ -528,7 +528,7 @@ static int script_wrk_connect(lua_State *L) {
     c.channel_ctx = machnet_attach();
     if (!c.channel_ctx) {
         lua_pushboolean(L, 0);
-        fprintf(stderr, "[ERROR] Failed to attach Machnet channel.\n");
+        fprintf(stderr, "[ERROR] Failed to attach Machnet channel (script.c).\n");
         return 1;
     }
     printf("[DEBUG] Machnet channel attached successfully.\n");

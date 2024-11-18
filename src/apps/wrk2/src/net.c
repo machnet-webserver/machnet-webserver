@@ -37,7 +37,7 @@ status sock_connect(connection *c, char *host) {
     // Attach Machnet channel
     c->channel_ctx = machnet_attach();
     if (c->channel_ctx == NULL) {
-        fprintf(stderr, "[ERROR] Failed to attach Machnet channel.\n");
+        fprintf(stderr, "[ERROR] Failed to attach Machnet channel (net.c).\n");
         return ERROR;
     }
     printf("[DEBUG] Machnet channel attached successfully.\n");
