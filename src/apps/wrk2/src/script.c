@@ -141,20 +141,9 @@ lua_State *script_create(char *file, char *url, char **headers) {
     }
     printf("[DEBUG] 'wrk' table retrieved from Lua state.\n");
 
-    // set_field(L, 4, "scheme", push_url_part(L, url, &parts, UF_SCHEMA));
-    // set_field(L, 4, "host",   push_url_part(L, url, &parts, UF_HOST));
-    // set_field(L, 4, "port",   push_url_part(L, url, &parts, UF_PORT));
-    // set_fields(L, 4, fields);
-    // printf("[DEBUG] Lua fields set (scheme, host, port, etc.).\n");
-
-    // Hardcoding wrk.host to 10.10.1.1
-    lua_pushstring(L, "10.10.1.1");
-    lua_setfield(L, 4, "host");
-    printf("[DEBUG] Hardcoded wrk.host to 10.10.1.1\n");
-
-    // Set other fields
     set_field(L, 4, "scheme", push_url_part(L, url, &parts, UF_SCHEMA));
-    set_field(L, 4, "port", push_url_part(L, url, &parts, UF_PORT));
+    set_field(L, 4, "host",   push_url_part(L, url, &parts, UF_HOST));
+    set_field(L, 4, "port",   push_url_part(L, url, &parts, UF_PORT));
     set_fields(L, 4, fields);
     printf("[DEBUG] Lua fields set (scheme, host, port, etc.).\n");
 
