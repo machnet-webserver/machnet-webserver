@@ -6,6 +6,8 @@
 #include "http_parser.h"
 #include "stats.h"
 #include "zmalloc.h"
+#include "net.h"
+
 
 typedef struct {
     char *name;
