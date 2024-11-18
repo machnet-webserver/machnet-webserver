@@ -547,7 +547,7 @@ static int script_wrk_connect(lua_State *L) {
 
     // Retrieve the 'wrk.port' field and convert to integer
     lua_getfield(L, -2, "port");
-    uint16_t port = 888; // Default port
+    uint16_t port = 8000; // Default port
     if (lua_isstring(L, -1)) {
         const char *port_str = lua_tostring(L, -1);
         port = (uint16_t)atoi(port_str);
