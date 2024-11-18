@@ -200,7 +200,12 @@ int main(int argc, char **argv) {
     for (uint64_t i = 0; i < cfg.threads; i++) {
         thread *t = &threads[i];
         pthread_join(t->thread, NULL);
+        if (t->complete >= cfg.connections) {
+            printf("[DEBUG] Main loop exiting after max connections.\n");
+            break;
+        }
     }
+
 
     uint64_t runtime_us = time_us() - start;
 
@@ -292,7 +297,7 @@ void *thread_main(void *arg) {
     connection *c = thread->cs;
 
     for (uint64_t i = 0; i < thread->connections; i++, c++) {
-        if (i >= cfg.connections) {  // Check if max connections are reached
+        if (i >= cfg.connections) {
             printf("[DEBUG] Max connections reached: %lu\n", cfg.connections);
             break;
         }
@@ -304,7 +309,7 @@ void *thread_main(void *arg) {
         c->catch_up_throughput = throughput * 2;
         c->complete   = 0;
         c->caught_up  = true;
-        // Stagger connects 5 msec apart within thread:
+
         aeCreateTimeEvent(loop, i * 5, delayed_initial_connect, c, NULL);
     }
 
@@ -314,6 +319,12 @@ void *thread_main(void *arg) {
     aeCreateTimeEvent(loop, calibrate_delay, calibrate, thread, NULL);
     aeCreateTimeEvent(loop, timeout_delay, check_timeouts, thread, NULL);
 
+    // Check if the total completed connections across all threads matches the configured limit
+    if (thread->complete >= cfg.connections) {
+        printf("[DEBUG] Exiting event loop after reaching maximum connections (%lu).\n", cfg.connections);
+        aeStop(loop); // Stop the event loop
+    }
+
     thread->start = time_us();
     aeMain(loop);
 
@@ -322,6 +333,7 @@ void *thread_main(void *arg) {
 
     return NULL;
 }
+
 
 
 static int connect_socket(thread *thread, connection *c) {
@@ -400,6 +412,13 @@ static int calibrate(aeEventLoop *loop, long long id, void *data) {
 static int check_timeouts(aeEventLoop *loop, long long id, void *data) {
     thread *thread = data;
     connection *c  = thread->cs;
+
+    if (stop || thread->complete >= cfg.connections) {
+        printf("[DEBUG] Stopping the loop after reaching max connections.\n");
+        aeStop(loop);
+        return AE_NOMORE;
+    }
+
     uint64_t now   = time_us();
 
     uint64_t maxAge = now - (cfg.timeout * 1000);
@@ -518,6 +537,12 @@ static int response_complete(http_parser *parser) {
 
     thread->complete++;
     thread->requests++;
+
+    if (thread->complete >= cfg.connections) {
+        printf("[DEBUG] All connections completed. Stopping the loop.\n");
+        aeStop(thread->loop);
+        return 0;
+    }
 
     if (status > 399) {
         thread->errors.status++;
