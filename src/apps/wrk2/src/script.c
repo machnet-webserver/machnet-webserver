@@ -139,13 +139,22 @@ lua_State *script_create(char *file, char *url, char **headers) {
         lua_close(L);
         return NULL;
     }
+
     printf("[DEBUG] 'wrk' table retrieved from Lua state.\n");
 
+    // Set individual fields: scheme, host, port
     set_field(L, 4, "scheme", push_url_part(L, url, &parts, UF_SCHEMA));
     set_field(L, 4, "host",   push_url_part(L, url, &parts, UF_HOST));
     set_field(L, 4, "port",   push_url_part(L, url, &parts, UF_PORT));
+
+    // Debug print for scheme, host, and port
+    printf("[DEBUG] Lua fields set: scheme=%s, host=%s, port=%s\n",
+        lua_tostring(L, -3), lua_tostring(L, -2), lua_tostring(L, -1));
+
+    // Set remaining fields using set_fields
     set_fields(L, 4, fields);
-    printf("[DEBUG] Lua fields set (scheme, host, port, etc.).\n");
+    printf("[DEBUG] Remaining Lua fields set (e.g., connect, lookup, time_us).\n");
+
 
     // Add headers to Lua
     lua_getfield(L, 4, "headers");
@@ -542,51 +551,44 @@ static int script_wrk_lookup(lua_State *L) {
 }
 
 int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
-    // Initialize a connection object
     connection c = {0};
 
     lua_getglobal(L, "wrk");
     lua_getfield(L, -1, "host");
-    const char *remote_ip = lua_tostring(L, -1); // wrk.host is used for remote_ip
+    const char *remote_ip = lua_tostring(L, -1);
     lua_getfield(L, -2, "port");
     uint16_t port = (uint16_t)atoi(lua_tostring(L, -1));
 
-    const char *local_ip = "10.10.1.1"; // Explicitly set the local_ip
+    // Debug print
+    printf("[DEBUG] script_wrk_connect: Retrieved from Lua - remote_ip=%s, port=%u\n", remote_ip, port);
 
-    printf("[DEBUG] In script_wrk_connect: local_ip=%s, remote_ip=%s, port=%u\n", local_ip, remote_ip, port);
+    const char *local_ip = "10.10.1.1";
 
-    // Attach Machnet channel
+    printf("[DEBUG] script_wrk_connect: Using local_ip=%s\n", local_ip);
+
     c.channel_ctx = machnet_attach();
     if (!c.channel_ctx) {
         fprintf(stderr, "[ERROR] Failed to attach Machnet channel.\n");
         lua_pushboolean(L, 0);
-        lua_pop(L, 3); // Cleanup Lua stack
+        lua_pop(L, 3);
         return 1;
     }
 
     printf("[DEBUG] Machnet channel attached successfully.\n");
 
-    // Check if max connections are reached
-    if (thread->complete >= cfg->connections) {
-        printf("[DEBUG] Maximum connections reached. Not attempting new connection.\n");
-        lua_pushboolean(L, 0);
-        machnet_detach(c.channel_ctx); // Cleanup
-        lua_pop(L, 3); // Cleanup Lua stack
-        return 1;
-    }
-
-    // Call sock_connect with explicitly set local_ip and remote_ip
-    printf("[DEBUG] Preparing to call sock_connect with local_ip=%s, remote_ip=%s, port=%u\n", local_ip, remote_ip, port);
     if (sock_connect(&c, local_ip, (char *)remote_ip, port) == OK) {
+        printf("[DEBUG] sock_connect succeeded: local_ip=%s, remote_ip=%s, port=%u\n", local_ip, remote_ip, port);
         lua_pushboolean(L, 1);
     } else {
+        fprintf(stderr, "[ERROR] sock_connect failed: local_ip=%s, remote_ip=%s, port=%u\n", local_ip, remote_ip, port);
         lua_pushboolean(L, 0);
-        machnet_detach(c.channel_ctx); // Cleanup
+        machnet_detach(c.channel_ctx);
     }
 
-    lua_pop(L, 3); // Cleanup Lua stack
+    lua_pop(L, 3);
     return 1;
 }
+
 
 
 
@@ -663,6 +665,7 @@ static void set_field(lua_State *L, int index, char *field, int type) {
 static void set_fields(lua_State *L, int index, const table_field *fields) {
     for (int i = 0; fields[i].name; i++) {
         table_field f = fields[i];
+        printf("[DEBUG] Setting field '%s' of type %d.\n", f.name, f.type); // Debug print
         switch (f.value == NULL ? LUA_TNIL : f.type) {
             case LUA_TFUNCTION:
                 lua_pushcfunction(L, (lua_CFunction) f.value);
@@ -680,6 +683,7 @@ static void set_fields(lua_State *L, int index, const table_field *fields) {
         lua_setfield(L, index, f.name);
     }
 }
+
 
 void buffer_append(buffer *b, const char *data, size_t len) {
     size_t used = b->cursor - b->buffer;
