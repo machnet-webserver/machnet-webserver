@@ -5,6 +5,15 @@ if(POLICY CMP0079)
     cmake_policy(SET CMP0079 NEW)
 endif()
 
+# Set default build type to Debug if none is specified
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
+
+# Add debug-specific flags
+set(CMAKE_C_FLAGS_DEBUG "-g -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
+
 project(juggler VERSION 0.0.1 DESCRIPTION "Packet Juggling framework in C++" LANGUAGES CXX C)
 
 include(CTest)
@@ -53,9 +62,10 @@ else()
     message(WARNING "wrk2 directory not found. Skipping wrk2 target.")
 endif()
 
-# Link dependencies to wrk2
+# Link dependencies to wrk2 and add debug flags
 if(TARGET wrk2)
+    target_compile_options(wrk2 PRIVATE -g -O0) # Debug flags specific to wrk2
     target_link_libraries(wrk2 PRIVATE gflags glog ssl crypto)
     include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/src/apps/wrk2")
-    message(STATUS "Linked dependencies (gflags, glog, ssl, crypto) to wrk2.")
+    message(STATUS "Linked dependencies (gflags, glog, ssl, crypto) to wrk2 with debugging enabled.")
 endif()
