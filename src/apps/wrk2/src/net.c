@@ -8,7 +8,7 @@
 
 #include "machnet.h"  
 
-char *global_local_ip;  // Declare `local_ip` as a global variable
+char *local_ip;  // Declare `local_ip` as a global variable
 
 // status sock_connect(connection *c, char *host) {
 //     return OK;
