@@ -38,7 +38,8 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
 
     // Always set local_ip to "10.10.1.1"
     local_ip = "10.10.1.1";
-
+    remote_port = 8000;
+    
     // Validate remote_ip
     if (!remote_ip || strlen(remote_ip) == 0) {
         fprintf(stderr, "[ERROR] Invalid remote IP in sock_connect.\n");
