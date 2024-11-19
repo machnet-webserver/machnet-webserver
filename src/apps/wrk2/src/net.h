@@ -24,6 +24,9 @@ struct sock {
 
 };
 
+// Declare global variable
+extern char *global_local_ip;
+
 status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t remote_port);
 status sock_close(connection *);
 status sock_read(connection *, size_t *);
