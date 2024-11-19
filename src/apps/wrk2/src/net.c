@@ -36,6 +36,9 @@ char *local_ip;  // Declare `local_ip` as a global variable
 status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t remote_port) {
     MachnetFlow_t flow;
 
+    // Always set local_ip to "10.10.1.1"
+    local_ip = "10.10.1.1";
+
     // Validate remote_ip
     if (!remote_ip || strlen(remote_ip) == 0) {
         fprintf(stderr, "[ERROR] Invalid remote IP in sock_connect.\n");
