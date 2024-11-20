@@ -39,7 +39,7 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
     // Always set local_ip to "10.10.1.1"
     local_ip = "10.10.1.1";
     remote_port = 8000;
-
+    
     // Validate remote_ip
     if (!remote_ip || strlen(remote_ip) == 0) {
         fprintf(stderr, "[ERROR] Invalid remote IP in sock_connect.\n");
@@ -67,40 +67,6 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
     if (connect_status == 0) {
         c->machnet_flow = flow; // Store flow context
         printf("[DEBUG] Machnet connected successfully to %s:%u (net.c).\n", remote_ip, remote_port);
-
-        // After connection, send an initial message
-        const char *initial_message = "Hello from WRK2!";
-        size_t n;
-        if (sock_write(c, (char *)initial_message, strlen(initial_message), &n) != OK) {
-            fprintf(stderr, "[ERROR] Failed to send initial message.\n");
-            machnet_detach(c->channel_ctx);  // Cleanup
-            return ERROR;
-        }
-        printf("[DEBUG] Sent %zu bytes (net.c).\n", n);
-
-        // Attempt to read from the channel
-        printf("[DEBUG] Attempting to read from port: %u\n", c->machnet_flow.src_port);
-
-        size_t received_size;
-        int retries = 5;  // Number of retry attempts
-        while (retries--) {
-            status read_status = sock_read(c, &received_size);
-            if (read_status == OK) {
-                printf("[DEBUG] Successfully read %zu bytes after connection.\n", received_size);
-                break;
-            } else if (read_status == RETRY) {
-                printf("[DEBUG] No data available. Retrying... (%d retries left)\n", retries);
-                usleep(100000);  // Wait 100ms before retrying
-            } else {
-                fprintf(stderr, "[ERROR] Failed to read data after connection.\n");
-                break;
-            }
-        }
-
-        if (retries <= 0) {
-            fprintf(stderr, "[ERROR] Exhausted retries. No data received after connection.\n");
-        }
-
         return OK;
     } else {
         fprintf(stderr, "[ERROR] Machnet connection failed to %s:%u: %s\n", remote_ip, remote_port, strerror(errno));
@@ -108,8 +74,6 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
         return ERROR;
     }
 }
-
-
 
 
 
@@ -157,47 +121,21 @@ status sock_close(connection *c) {
 // }
 
 status sock_read(connection *c, size_t *n) {
-    int retries = 5;  // Number of retry attempts
-    while (retries--) {
-        MachnetFlow_t flow_info;
-        ssize_t bytes_received = machnet_recv(c->channel_ctx, c->buf, sizeof(c->buf), &flow_info);
+    MachnetFlow_t flow_info;
+    ssize_t bytes_received = machnet_recv(c->channel_ctx, c->buf, sizeof(c->buf), &flow_info);
 
-        if (bytes_received > 0) {
-            *n = (size_t)bytes_received;
-
-            // Debugging flow details
-            printf("[DEBUG] Attempting to read from port: %u\n", flow_info.src_port);
-            printf("[DEBUG] Flow details: Source port %d, Destination port %d\n",
-                   flow_info.src_port, flow_info.dst_port);
-
-            // Debugging received data
-            printf("[DEBUG] Received %ld bytes:\n", bytes_received);
-            for (ssize_t i = 0; i < bytes_received; i++) {
-                char ch = c->buf[i];
-                if (isprint(ch)) {
-                    putchar(ch);  // Print printable characters
-                } else {
-                    printf("\\x%02x", (unsigned char)ch);  // Hex for non-printable characters
-                }
-            }
-            putchar('\n');
-            return OK;
-        } else if (bytes_received == 0) {
-            printf("[DEBUG] No data available to read (net.c). Retrying... (%d retries left)\n", retries);
-            usleep(100000);  // Wait 100ms before retrying
-        } else {
-            fprintf(stderr, "[ERROR] machnet_recv failed: %s\n", strerror(errno));
-            return ERROR;  // An error occurred
-        }
+    if (bytes_received > 0) {
+        *n = (size_t)bytes_received;
+        printf("[DEBUG] Received %ld bytes (net.c).\n", bytes_received);
+        return OK;
+    } else if (bytes_received == 0) {
+        printf("[DEBUG] No data available to read (net.c).\n");
+        return RETRY;
+    } else {
+        fprintf(stderr, "[ERROR] machnet_recv failed: %s\n", strerror(errno));
+        return ERROR;
     }
-
-    // If retries exhausted and still no data
-    printf("[ERROR] Exhausted retries. No data received (net.c).\n");
-    return ERROR;
 }
-
-
-
 
 
 
