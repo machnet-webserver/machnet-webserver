@@ -149,10 +149,9 @@ status sock_read(connection *c, size_t *n) {
     if (bytes_received > 0) {
         *n = (size_t)bytes_received;
 
-        // Debug flow details
-        printf("[DEBUG] Flow details: Local %s:%d, Remote %s:%d\n",
-               flow_info.local_ip, flow_info.local_port,
-               flow_info.remote_ip, flow_info.remote_port);
+        // Corrected flow debugging
+        printf("[DEBUG] Flow details: Source port %d, Destination port %d\n",
+               flow_info.src_port, flow_info.dst_port);
 
         // Debugging received data
         printf("[DEBUG] Received %ld bytes:\n", bytes_received);
