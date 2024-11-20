@@ -126,7 +126,20 @@ status sock_read(connection *c, size_t *n) {
 
     if (bytes_received > 0) {
         *n = (size_t)bytes_received;
-        printf("[DEBUG] Received %ld bytes (net.c).\n", bytes_received);
+        printf("[DEBUG] Received %ld bytes (net.c):\n", bytes_received);
+
+        // Print raw data with a limit for large payloads
+        printf("[DEBUG] Data received: ");
+        for (ssize_t i = 0; i < bytes_received; i++) {
+            char ch = c->buf[i];
+            if (isprint(ch)) {
+                putchar(ch);  // Print printable characters
+            } else {
+                printf("\\x%02x", (unsigned char)ch);  // Print non-printable characters as hex
+            }
+        }
+        putchar('\n');  // Newline after data
+
         return OK;
     } else if (bytes_received == 0) {
         printf("[DEBUG] No data available to read (net.c).\n");
@@ -136,6 +149,7 @@ status sock_read(connection *c, size_t *n) {
         return ERROR;
     }
 }
+
 
 
 
