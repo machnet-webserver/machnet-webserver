@@ -39,7 +39,7 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
     // Always set local_ip to "10.10.1.1"
     local_ip = "10.10.1.1";
     remote_port = 8000;
-    
+
     // Validate remote_ip
     if (!remote_ip || strlen(remote_ip) == 0) {
         fprintf(stderr, "[ERROR] Invalid remote IP in sock_connect.\n");
@@ -68,24 +68,23 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
         c->machnet_flow = flow; // Store flow context
         printf("[DEBUG] Machnet connected successfully to %s:%u (net.c).\n", remote_ip, remote_port);
 
-        // Test for immediate data reception
-        char buffer[1024];
-        ssize_t bytes_received = machnet_recv(c->channel_ctx, buffer, sizeof(buffer), &flow);
-        if (bytes_received > 0) {
-            printf("[DEBUG] Data received after connection (%ld bytes):\n", bytes_received);
-            for (ssize_t i = 0; i < bytes_received; i++) {
-                char ch = buffer[i];
-                if (isprint(ch)) {
-                    putchar(ch); // Print printable characters
-                } else {
-                    printf("\\x%02x", (unsigned char)ch); // Print non-printable characters as hex
-                }
-            }
-            putchar('\n');
-        } else if (bytes_received == 0) {
-            printf("[DEBUG] No immediate data available after connection.\n");
+        // After connection, send an initial message
+        const char *initial_message = "Hello from WRK2!";
+        size_t n;
+        if (sock_write(c, (char *)initial_message, strlen(initial_message), &n) != OK) {
+            fprintf(stderr, "[ERROR] Failed to send initial message.\n");
+            return ERROR;
+        }
+
+        // Call sock_read to check for immediate responses
+        size_t received_size;
+        status read_status = sock_read(c, &received_size);
+        if (read_status == OK) {
+            printf("[DEBUG] Successfully read %zu bytes after connection.\n", received_size);
+        } else if (read_status == RETRY) {
+            printf("[DEBUG] No data available immediately after connection.\n");
         } else {
-            fprintf(stderr, "[ERROR] machnet_recv failed in sock_connect: %s\n", strerror(errno));
+            fprintf(stderr, "[ERROR] Failed to read data after connection.\n");
         }
 
         return OK;
@@ -95,6 +94,7 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
         return ERROR;
     }
 }
+
 
 
 
@@ -148,29 +148,28 @@ status sock_read(connection *c, size_t *n) {
 
     if (bytes_received > 0) {
         *n = (size_t)bytes_received;
-        printf("[DEBUG] Received %ld bytes (net.c):\n", bytes_received);
 
-        // Print raw data with a limit for large payloads
-        printf("[DEBUG] Data received: ");
-        for (ssize_t i = 0; i < bytes_received; i++) {
+        // Debugging received data
+        printf("[DEBUG] Received %ld bytes:\n", bytes_received);
+ (ssize_t i = 0; i < bytes_received; i++) {
             char ch = c->buf[i];
             if (isprint(ch)) {
                 putchar(ch);  // Print printable characters
             } else {
-                printf("\\x%02x", (unsigned char)ch);  // Print non-printable characters as hex
+                printf("\\x%02x", (unsigned char)ch);  // Hex for non-printable characters
             }
         }
-        putchar('\n');  // Newline after data
-
+        putchar('\n');
         return OK;
     } else if (bytes_received == 0) {
         printf("[DEBUG] No data available to read (net.c).\n");
-        return RETRY;
+        return RETRY;  // No data yet, retry later
     } else {
         fprintf(stderr, "[ERROR] machnet_recv failed: %s\n", strerror(errno));
-        return ERROR;
+        return ERROR;  // An error occurred
     }
 }
+
 
 
 
