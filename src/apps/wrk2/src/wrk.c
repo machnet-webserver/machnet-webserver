@@ -753,10 +753,18 @@ static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     }
 
     c->written += n;
+    // if (c->written == c->length) {
+    //     c->written = 0;
+    //     aeDeleteFileEvent(loop, fd, AE_WRITABLE);
+    // }
+
     if (c->written == c->length) {
         c->written = 0;
-        aeDeleteFileEvent(loop, fd, AE_WRITABLE);
+        aeDeleteFileEvent(loop, fd, AE_WRITABLE); // Remove writable event
+        aeCreateFileEvent(loop, fd, AE_READABLE, socket_readable, c); // Register readable event
+        printf("[DEBUG] AE_READABLE registered for fd %d\n", fd);
     }
+
 
     return;
 
