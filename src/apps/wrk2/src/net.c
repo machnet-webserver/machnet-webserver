@@ -151,7 +151,7 @@ status sock_read(connection *c, size_t *n) {
 
         // Debugging received data
         printf("[DEBUG] Received %ld bytes:\n", bytes_received);
- (ssize_t i = 0; i < bytes_received; i++) {
+        for (ssize_t i = 0; i < bytes_received; i++) {
             char ch = c->buf[i];
             if (isprint(ch)) {
                 putchar(ch);  // Print printable characters
