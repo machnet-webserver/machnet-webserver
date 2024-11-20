@@ -122,11 +122,24 @@ status sock_close(connection *c) {
 
 status sock_read(connection *c, size_t *n) {
     MachnetFlow_t flow_info;
+    printf("[DEBUG] Entering sock_read for port: %u\n", c->machnet_flow.src_port);
+
     ssize_t bytes_received = machnet_recv(c->channel_ctx, c->buf, sizeof(c->buf), &flow_info);
 
     if (bytes_received > 0) {
         *n = (size_t)bytes_received;
-        printf("[DEBUG] Received %ld bytes (net.c).\n", bytes_received);
+        printf("[DEBUG] Received %ld bytes:\n", bytes_received);
+
+        // Print received data
+        for (ssize_t i = 0; i < bytes_received; i++) {
+            char ch = c->buf[i];
+            if (isprint(ch)) {
+                putchar(ch);
+            } else {
+                printf("\\x%02x", (unsigned char)ch);
+            }
+        }
+        putchar('\n');
         return OK;
     } else if (bytes_received == 0) {
         printf("[DEBUG] No data available to read (net.c).\n");
@@ -136,6 +149,7 @@ status sock_read(connection *c, size_t *n) {
         return ERROR;
     }
 }
+
 
 
 
