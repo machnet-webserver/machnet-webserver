@@ -39,7 +39,7 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
     // Always set local_ip to "10.10.1.1"
     local_ip = "10.10.1.1";
     remote_port = 8000;
-    
+
     // Validate remote_ip
     if (!remote_ip || strlen(remote_ip) == 0) {
         fprintf(stderr, "[ERROR] Invalid remote IP in sock_connect.\n");
@@ -67,6 +67,33 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
     if (connect_status == 0) {
         c->machnet_flow = flow; // Store flow context
         printf("[DEBUG] Machnet connected successfully to %s:%u (net.c).\n", remote_ip, remote_port);
+
+        // Attempt to read data after connection
+        size_t received_size = 0;
+        int retries = 5;  // Retry up to 5 times
+        status read_status = RETRY; // Initialize with RETRY
+        printf("[DEBUG] Attempting to read from port: %u\n", c->machnet_flow.src_port);
+
+        while (retries--) {
+            read_status = sock_read(c, &received_size);
+            if (read_status == OK) {
+                printf("[DEBUG] Successfully read %zu bytes.\n", received_size);
+                break;
+            } else if (read_status == RETRY) {
+                usleep(100000);  // Wait 100ms before retrying
+            } else {
+                printf("[ERROR] sock_read failed. Exiting read loop.\n");
+                break;
+            }
+        }
+
+        // If all retries are exhausted and no data received
+        if (read_status != OK) {
+            if (read_status == RETRY) {
+                printf("[ERROR] Exhausted retries. No data received (net.c).\n");
+            }
+        }
+
         return OK;
     } else {
         fprintf(stderr, "[ERROR] Machnet connection failed to %s:%u: %s\n", remote_ip, remote_port, strerror(errno));
