@@ -67,6 +67,27 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
     if (connect_status == 0) {
         c->machnet_flow = flow; // Store flow context
         printf("[DEBUG] Machnet connected successfully to %s:%u (net.c).\n", remote_ip, remote_port);
+
+        // Test for immediate data reception
+        char buffer[1024];
+        ssize_t bytes_received = machnet_recv(c->channel_ctx, buffer, sizeof(buffer), &flow);
+        if (bytes_received > 0) {
+            printf("[DEBUG] Data received after connection (%ld bytes):\n", bytes_received);
+            for (ssize_t i = 0; i < bytes_received; i++) {
+                char ch = buffer[i];
+                if (isprint(ch)) {
+                    putchar(ch); // Print printable characters
+                } else {
+                    printf("\\x%02x", (unsigned char)ch); // Print non-printable characters as hex
+                }
+            }
+            putchar('\n');
+        } else if (bytes_received == 0) {
+            printf("[DEBUG] No immediate data available after connection.\n");
+        } else {
+            fprintf(stderr, "[ERROR] machnet_recv failed in sock_connect: %s\n", strerror(errno));
+        }
+
         return OK;
     } else {
         fprintf(stderr, "[ERROR] Machnet connection failed to %s:%u: %s\n", remote_ip, remote_port, strerror(errno));
@@ -74,6 +95,7 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
         return ERROR;
     }
 }
+
 
 
 
