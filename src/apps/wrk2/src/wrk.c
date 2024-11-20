@@ -5,9 +5,10 @@
 #include "main.h"
 #include "hdr_histogram.h"
 #include "stats.h"
-#include <vector>
+#include <stdlib.h>
+#include <string.h>
 
-std::vector<connection*> global_connections;  // Replace event loop
+connection_list global_connections; // Replace vector
 pthread_mutex_t global_connections_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Max recordable latency of 1 day
@@ -32,6 +33,56 @@ config cfg;
 //     char    *script;
 //     SSL_CTX *ctx;
 // } cfg;
+
+typedef struct {
+    connection **connections; // Pointer to the dynamic array of connections
+    size_t size;              // Current number of elements in the list
+    size_t capacity;          // Total allocated capacity
+} connection_list;
+
+#include <stdlib.h>
+#include <string.h>
+
+// Initialize the connection list
+void connection_list_init(connection_list *list, size_t initial_capacity) {
+    list->connections = zmalloc(initial_capacity * sizeof(connection *));
+    if (!list->connections) {
+        fprintf(stderr, "[ERROR] Failed to allocate memory for connection list.\n");
+        exit(EXIT_FAILURE);
+    }
+    list->size = 0;
+    list->capacity = initial_capacity;
+}
+
+// Add a connection to the list
+void connection_list_add(connection_list *list, connection *conn) {
+    if (list->size >= list->capacity) {
+        list->capacity *= 2; // Double the capacity
+        list->connections = realloc(list->connections, list->capacity * sizeof(connection *));
+        if (!list->connections) {
+            fprintf(stderr, "[ERROR] Failed to resize connection list.\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+    list->connections[list->size++] = conn;
+}
+
+// Remove a connection from the list by index
+void connection_list_remove(connection_list *list, size_t index) {
+    if (index >= list->size) return; // Index out of bounds
+    memmove(&list->connections[index], &list->connections[index + 1],
+            (list->size - index - 1) * sizeof(connection *));
+    list->size--;
+}
+
+// Free the connection list
+void connection_list_free(connection_list *list) {
+    free(list->connections);
+    list->connections = NULL;
+    list->size = 0;
+    list->capacity = 0;
+}
+
 
 static struct {
     stats *requests;
@@ -370,6 +421,10 @@ int main(int argc, char **argv) {
     }
     cfg.host = host;
 
+    // Initialize global connection list
+    connection_list_init(&global_connections, 16); // Start with initial capacity of 16
+
+
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, handler);
 
@@ -652,9 +707,9 @@ static int connect_socket(thread *thread, connection *c) {
 
     c->fd = fd;
 
-    // Add connection to global vector
+    // Add the connection to global_connections
     pthread_mutex_lock(&global_connections_mutex);
-    global_connections.push_back(c);
+    connection_list_add(&global_connections, c);
     pthread_mutex_unlock(&global_connections_mutex);
 
     return fd;
@@ -663,11 +718,12 @@ static int connect_socket(thread *thread, connection *c) {
 
 
 
+
 void polling_loop() {
     while (!stop) {
         pthread_mutex_lock(&global_connections_mutex);
-        for (auto it = global_connections.begin(); it != global_connections.end();) {
-            connection *c = *it;
+        for (size_t i = 0; i < global_connections.size; ++i) {
+            connection *c = global_connections.connections[i];
 
             // Check if the socket is readable
             ssize_t n = machnet_recv(c->channel_ctx, c->buf, sizeof(c->buf), NULL);
@@ -676,49 +732,55 @@ void polling_loop() {
                 c->thread->bytes += n;
                 if (http_parser_execute(&c->parser, &parser_settings, c->buf, n) != n) {
                     c->thread->errors.read++;
-                    it = global_connections.erase(it);
+                    connection_list_remove(&global_connections, i--); // Adjust index after removal
                     continue;
                 }
-            } else if (n == 0) {
-                // No data, continue polling
-                ++it;
-                continue;
-            } else {
+            } else if (n < 0) {
                 // Handle errors
                 c->thread->errors.read++;
-                it = global_connections.erase(it);
+                connection_list_remove(&global_connections, i--); // Adjust index after removal
                 continue;
             }
 
-            // Check if socket is writable
+            // Check if the socket is writable
             if (c->written < c->length) {
                 ssize_t written = machnet_send(c->channel_ctx, c->machnet_flow, c->request + c->written, c->length - c->written);
                 if (written > 0) {
                     c->written += written;
                 } else if (written < 0) {
                     c->thread->errors.write++;
-                    it = global_connections.erase(it);
+                    connection_list_remove(&global_connections, i--); // Adjust index after removal
                     continue;
                 }
             }
-
-            ++it;
         }
         pthread_mutex_unlock(&global_connections_mutex);
 
         // Sleep briefly to prevent busy-waiting
-        usleep(1000);  // 1 ms
+        usleep(1000); // 1 ms
     }
 }
 
 
+
+// void cleanup_connections() {
+//     pthread_mutex_lock(&global_connections_mutex);
+//     for (connection *c : global_connections) {
+//         close(c->fd);
+//         free(c);
+//     }
+//     global_connections.clear();
+//     pthread_mutex_unlock(&global_connections_mutex);
+// }
+
 void cleanup_connections() {
     pthread_mutex_lock(&global_connections_mutex);
-    for (connection *c : global_connections) {
+    for (size_t i = 0; i < global_connections.size; ++i) {
+        connection *c = global_connections.connections[i];
         close(c->fd);
         free(c);
     }
-    global_connections.clear();
+    connection_list_free(&global_connections);
     pthread_mutex_unlock(&global_connections_mutex);
 }
 
