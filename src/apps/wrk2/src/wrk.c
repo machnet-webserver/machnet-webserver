@@ -5,6 +5,10 @@
 #include "main.h"
 #include "hdr_histogram.h"
 #include "stats.h"
+#include <vector>
+
+std::vector<connection*> global_connections;  // Replace event loop
+pthread_mutex_t global_connections_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Max recordable latency of 1 day
 #define MAX_LATENCY 24L * 60 * 60 * 1000000
@@ -84,8 +88,261 @@ static void usage() {
            "  Time arguments may include a time unit (2s, 2m, 2h)\n");
 }
 
-int main(int argc, char **argv) {
+// int main(int argc, char **argv) {
 
+//     char *url, **headers = zmalloc(argc * sizeof(char *));
+//     struct http_parser_url parts = {};
+
+//     if (parse_args(&cfg, &url, &parts, headers, argc, argv)) {
+//         usage();
+//         exit(1);
+//     }
+
+//     char *schema  = copy_url_part(url, &parts, UF_SCHEMA);
+//     char *host    = copy_url_part(url, &parts, UF_HOST);
+//     char *port    = copy_url_part(url, &parts, UF_PORT);
+//     char *service = port ? port : schema;
+
+//     if (!strncmp("https", schema, 5)) {
+//         if ((cfg.ctx = ssl_init()) == NULL) {
+//             fprintf(stderr, "unable to initialize SSL\n");
+//             ERR_print_errors_fp(stderr);
+//             exit(1);
+//         }
+//         sock.connect  = ssl_connect;
+//         sock.close    = ssl_close;
+//         sock.read     = ssl_read;
+//         sock.write    = ssl_write;
+//         sock.readable = ssl_readable;
+//     }
+//     // if (!strncmp("https", schema, 5)) {
+//     //     if ((cfg.ctx = ssl_init()) == NULL) {
+//     //         fprintf(stderr, "unable to initialize SSL\n");
+//     //         ERR_print_errors_fp(stderr);
+//     //         exit(1);
+//     //     }
+//     //     // Assign SSL functions without `readable`
+//     //     sock.connect = ssl_connect;
+//     //     sock.close   = ssl_close;
+//     //     sock.read    = ssl_read;
+//     //     sock.write   = ssl_write;
+//     // } else {
+//     //     // Default to Machnet functions for non-SSL
+//     //     sock.connect = machnet_connect_handler;
+//     //     sock.close   = machnet_close_handler;
+//     //     sock.read    = machnet_read_handler;
+//     //     sock.write   = machnet_write_handler;
+//     // }
+//     cfg.host = host;
+	
+//     signal(SIGPIPE, SIG_IGN);
+//     signal(SIGINT,  SIG_IGN);
+
+//     pthread_mutex_init(&statistics.mutex, NULL);
+//     statistics.requests = stats_alloc(10);
+//     thread *threads = zcalloc(cfg.threads * sizeof(thread));
+
+//     hdr_init(1, MAX_LATENCY, 3, &(statistics.requests->histogram));
+
+
+//     lua_State *L = script_create(cfg.script, url, headers);
+//     if (!script_resolve(L, host, service)) {
+//         char *msg = strerror(errno);
+//         fprintf(stderr, "unable to connect to %s:%s %s\n", host, service, msg);
+//         exit(1);
+//     }
+
+//     // Validate Lua state for `wrk.host` and `wrk.port` after script resolution
+//     lua_getglobal(L, "wrk");
+
+//     // Recheck `wrk.host`
+//     lua_getfield(L, -1, "host");
+//     if (!lua_isstring(L, -1)) {
+//         fprintf(stderr, "[ERROR] Lua state corrupted: 'wrk.host' is missing or invalid.\n");
+//     } else {
+//         printf("[DEBUG] Final wrk.host after script resolution: %s\n", lua_tostring(L, -1));
+//     }
+//     lua_pop(L, 1);
+
+//     // Recheck `wrk.port`
+//     lua_getfield(L, -1, "port");
+//     if (!lua_isstring(L, -1)) {
+//         fprintf(stderr, "[ERROR] Lua state corrupted: 'wrk.port' is missing or invalid.\n");
+//     } else {
+//         printf("[DEBUG] Final wrk.port after script resolution: %s\n", lua_tostring(L, -1));
+//     }
+//     lua_pop(L, 1);
+
+//     // Clean up Lua stack
+//     lua_pop(L, 1);
+    
+//     uint64_t connections = cfg.connections / cfg.threads;
+//     double throughput    = (double)cfg.rate / cfg.threads;
+//     uint64_t stop_at     = time_us() + (cfg.duration * 1000000);
+
+//     for (uint64_t i = 0; i < cfg.threads; i++) {
+//         thread *t = &threads[i];
+//         t->loop        = aeCreateEventLoop(10 + cfg.connections * 3);
+//         t->connections = connections;
+//         t->throughput = throughput;
+//         t->stop_at     = stop_at;
+
+//         t->L = script_create(cfg.script, url, headers);
+//         script_init(L, t, argc - optind, &argv[optind]);
+
+//         // Validate Lua state in thread after initialization
+//         lua_getglobal(t->L, "wrk");
+
+//         lua_getfield(t->L, -1, "host");
+//         printf("[DEBUG] Thread %"PRIu64" wrk.host: %s\n", i,
+//             lua_isstring(t->L, -1) ? lua_tostring(t->L, -1) : "(null)");
+//         lua_pop(t->L, 1);
+
+//         lua_getfield(t->L, -1, "port");
+//         printf("[DEBUG] Thread %"PRIu64" wrk.port: %s\n", i,
+//             lua_isstring(t->L, -1) ? lua_tostring(t->L, -1) : "(null)");
+//         lua_pop(t->L, 1);
+
+//         lua_pop(t->L, 1);
+
+//         if (i == 0) {
+//             cfg.pipeline = script_verify_request(t->L);
+//             cfg.dynamic = !script_is_static(t->L);
+//             if (script_want_response(t->L)) {
+//                 parser_settings.on_header_field = header_field;
+//                 parser_settings.on_header_value = header_value;
+//                 parser_settings.on_body         = response_body;
+//             }
+//         }
+
+//         if (!t->loop || pthread_create(&t->thread, NULL, &thread_main, t)) {
+//             char *msg = strerror(errno);
+//             fprintf(stderr, "unable to create thread %"PRIu64": %s\n", i, msg);
+//             exit(2);
+//         }
+//     }
+
+
+//     struct sigaction sa = {
+//         .sa_handler = handler,
+//         .sa_flags   = 0,
+//     };
+//     sigfillset(&sa.sa_mask);
+//     sigaction(SIGINT, &sa, NULL);
+
+//     char *time = format_time_s(cfg.duration);
+//     printf("Running %s test @ %s\n", time, url);
+//     printf("  %"PRIu64" threads and %"PRIu64" connections\n",
+//             cfg.threads, cfg.connections);
+
+//     // Validate Lua state after test starts
+//     lua_getglobal(L, "wrk");
+
+//     // Check `wrk.host`
+//     lua_getfield(L, -1, "host");
+//     printf("[DEBUG] wrk.host during test: %s\n",
+//         lua_isstring(L, -1) ? lua_tostring(L, -1) : "(null)");
+//     lua_pop(L, 1);
+
+//     // Check `wrk.port`
+//     lua_getfield(L, -1, "port");
+//     printf("[DEBUG] wrk.port during test: %s\n",
+//         lua_isstring(L, -1) ? lua_tostring(L, -1) : "(null)");
+//     lua_pop(L, 1);
+
+//     // Clean up Lua stack
+//     lua_pop(L, 1);
+
+//     uint64_t start    = time_us();
+//     uint64_t complete = 0;
+//     uint64_t bytes    = 0;
+//     errors errors     = { 0 };
+
+//     struct hdr_histogram* latency_histogram;
+//     hdr_init(1, MAX_LATENCY, 3, &latency_histogram);
+//     struct hdr_histogram* u_latency_histogram;
+//     hdr_init(1, MAX_LATENCY, 3, &u_latency_histogram);
+
+//     for (uint64_t i = 0; i < cfg.threads; i++) {
+//         thread *t = &threads[i];
+//         pthread_join(t->thread, NULL);
+//         if (t->complete >= cfg.connections) {
+//             printf("[DEBUG] Main loop exiting after max connections.\n");
+//             break;
+//         }
+//     }
+
+
+//     uint64_t runtime_us = time_us() - start;
+
+//     for (uint64_t i = 0; i < cfg.threads; i++) {
+//         thread *t = &threads[i];
+//         complete += t->complete;
+//         bytes    += t->bytes;
+
+//         errors.connect += t->errors.connect;
+//         errors.read    += t->errors.read;
+//         errors.write   += t->errors.write;
+//         errors.timeout += t->errors.timeout;
+//         errors.status  += t->errors.status;
+
+//         hdr_add(latency_histogram, t->latency_histogram);
+//         hdr_add(u_latency_histogram, t->u_latency_histogram);
+//     }
+
+//     long double runtime_s   = runtime_us / 1000000.0;
+//     long double req_per_s   = complete   / runtime_s;
+//     long double bytes_per_s = bytes      / runtime_s;
+
+//     stats *latency_stats = stats_alloc(10);
+//     latency_stats->min = hdr_min(latency_histogram);
+//     latency_stats->max = hdr_max(latency_histogram);
+//     latency_stats->histogram = latency_histogram;
+
+//     print_stats_header();
+//     print_stats("Latency", latency_stats, format_time_us);
+//     print_stats("Req/Sec", statistics.requests, format_metric);
+// //    if (cfg.latency) print_stats_latency(latency_stats);
+
+//     if (cfg.latency) {
+//         print_hdr_latency(latency_histogram,
+//                 "Recorded Latency");
+//         printf("----------------------------------------------------------\n");
+//     }
+
+//     if (cfg.u_latency) {
+//         printf("\n");
+//         print_hdr_latency(u_latency_histogram,
+//                 "Uncorrected Latency (measured without taking delayed starts into account)");
+//         printf("----------------------------------------------------------\n");
+//     }
+
+//     char *runtime_msg = format_time_us(runtime_us);
+
+//     printf("  %"PRIu64" requests in %s, %sB read\n",
+//             complete, runtime_msg, format_binary(bytes));
+//     if (errors.connect || errors.read || errors.write || errors.timeout) {
+//         printf("  Socket errors: connect %d, read %d, write %d, timeout %d\n",
+//                errors.connect, errors.read, errors.write, errors.timeout);
+//     }
+
+//     if (errors.status) {
+//         printf("  Non-2xx or 3xx responses: %d\n", errors.status);
+//     }
+
+//     printf("Requests/sec: %9.2Lf\n", req_per_s);
+//     printf("Transfer/sec: %10sB\n", format_binary(bytes_per_s));
+
+//     if (script_has_done(L)) {
+//         script_summary(L, runtime_us, complete, bytes);
+//         script_errors(L, &errors);
+//         script_done(L, latency_stats, statistics.requests);
+//     }
+
+//     return 0;
+// }
+
+int main(int argc, char **argv) {
     char *url, **headers = zmalloc(argc * sizeof(char *));
     struct http_parser_url parts = {};
 
@@ -111,28 +368,10 @@ int main(int argc, char **argv) {
         sock.write    = ssl_write;
         sock.readable = ssl_readable;
     }
-    // if (!strncmp("https", schema, 5)) {
-    //     if ((cfg.ctx = ssl_init()) == NULL) {
-    //         fprintf(stderr, "unable to initialize SSL\n");
-    //         ERR_print_errors_fp(stderr);
-    //         exit(1);
-    //     }
-    //     // Assign SSL functions without `readable`
-    //     sock.connect = ssl_connect;
-    //     sock.close   = ssl_close;
-    //     sock.read    = ssl_read;
-    //     sock.write   = ssl_write;
-    // } else {
-    //     // Default to Machnet functions for non-SSL
-    //     sock.connect = machnet_connect_handler;
-    //     sock.close   = machnet_close_handler;
-    //     sock.read    = machnet_read_handler;
-    //     sock.write   = machnet_write_handler;
-    // }
     cfg.host = host;
-	
+
     signal(SIGPIPE, SIG_IGN);
-    signal(SIGINT,  SIG_IGN);
+    signal(SIGINT, handler);
 
     pthread_mutex_init(&statistics.mutex, NULL);
     statistics.requests = stats_alloc(10);
@@ -140,6 +379,9 @@ int main(int argc, char **argv) {
 
     hdr_init(1, MAX_LATENCY, 3, &(statistics.requests->histogram));
 
+    // Start the polling thread
+    pthread_t polling_thread;
+    pthread_create(&polling_thread, NULL, (void* (*)(void*))polling_loop, NULL);
 
     lua_State *L = script_create(cfg.script, url, headers);
     if (!script_resolve(L, host, service)) {
@@ -148,30 +390,16 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    // Validate Lua state for `wrk.host` and `wrk.port` after script resolution
+    // Lua debug checks (wrk.host, wrk.port) remain unchanged
     lua_getglobal(L, "wrk");
-
-    // Recheck `wrk.host`
     lua_getfield(L, -1, "host");
-    if (!lua_isstring(L, -1)) {
-        fprintf(stderr, "[ERROR] Lua state corrupted: 'wrk.host' is missing or invalid.\n");
-    } else {
-        printf("[DEBUG] Final wrk.host after script resolution: %s\n", lua_tostring(L, -1));
-    }
+    printf("[DEBUG] wrk.host: %s\n", lua_isstring(L, -1) ? lua_tostring(L, -1) : "(null)");
     lua_pop(L, 1);
-
-    // Recheck `wrk.port`
     lua_getfield(L, -1, "port");
-    if (!lua_isstring(L, -1)) {
-        fprintf(stderr, "[ERROR] Lua state corrupted: 'wrk.port' is missing or invalid.\n");
-    } else {
-        printf("[DEBUG] Final wrk.port after script resolution: %s\n", lua_tostring(L, -1));
-    }
+    printf("[DEBUG] wrk.port: %s\n", lua_isstring(L, -1) ? lua_tostring(L, -1) : "(null)");
+    lua_pop(L, 1);
     lua_pop(L, 1);
 
-    // Clean up Lua stack
-    lua_pop(L, 1);
-    
     uint64_t connections = cfg.connections / cfg.threads;
     double throughput    = (double)cfg.rate / cfg.threads;
     uint64_t stop_at     = time_us() + (cfg.duration * 1000000);
@@ -180,45 +408,20 @@ int main(int argc, char **argv) {
         thread *t = &threads[i];
         t->loop        = aeCreateEventLoop(10 + cfg.connections * 3);
         t->connections = connections;
-        t->throughput = throughput;
+        t->throughput  = throughput;
         t->stop_at     = stop_at;
 
         t->L = script_create(cfg.script, url, headers);
         script_init(L, t, argc - optind, &argv[optind]);
 
-        // Validate Lua state in thread after initialization
-        lua_getglobal(t->L, "wrk");
-
-        lua_getfield(t->L, -1, "host");
-        printf("[DEBUG] Thread %"PRIu64" wrk.host: %s\n", i,
-            lua_isstring(t->L, -1) ? lua_tostring(t->L, -1) : "(null)");
-        lua_pop(t->L, 1);
-
-        lua_getfield(t->L, -1, "port");
-        printf("[DEBUG] Thread %"PRIu64" wrk.port: %s\n", i,
-            lua_isstring(t->L, -1) ? lua_tostring(t->L, -1) : "(null)");
-        lua_pop(t->L, 1);
-
-        lua_pop(t->L, 1);
-
-        if (i == 0) {
-            cfg.pipeline = script_verify_request(t->L);
-            cfg.dynamic = !script_is_static(t->L);
-            if (script_want_response(t->L)) {
-                parser_settings.on_header_field = header_field;
-                parser_settings.on_header_value = header_value;
-                parser_settings.on_body         = response_body;
-            }
-        }
-
-        if (!t->loop || pthread_create(&t->thread, NULL, &thread_main, t)) {
+        if (pthread_create(&t->thread, NULL, thread_main, t)) {
             char *msg = strerror(errno);
-            fprintf(stderr, "unable to create thread %"PRIu64": %s\n", i, msg);
+            fprintf(stderr, "unable to create thread %" PRIu64 ": %s\n", i, msg);
             exit(2);
         }
     }
 
-
+    // Existing signal handling and stats print logic
     struct sigaction sa = {
         .sa_handler = handler,
         .sa_flags   = 0,
@@ -228,49 +431,31 @@ int main(int argc, char **argv) {
 
     char *time = format_time_s(cfg.duration);
     printf("Running %s test @ %s\n", time, url);
-    printf("  %"PRIu64" threads and %"PRIu64" connections\n",
-            cfg.threads, cfg.connections);
-
-    // Validate Lua state after test starts
-    lua_getglobal(L, "wrk");
-
-    // Check `wrk.host`
-    lua_getfield(L, -1, "host");
-    printf("[DEBUG] wrk.host during test: %s\n",
-        lua_isstring(L, -1) ? lua_tostring(L, -1) : "(null)");
-    lua_pop(L, 1);
-
-    // Check `wrk.port`
-    lua_getfield(L, -1, "port");
-    printf("[DEBUG] wrk.port during test: %s\n",
-        lua_isstring(L, -1) ? lua_tostring(L, -1) : "(null)");
-    lua_pop(L, 1);
-
-    // Clean up Lua stack
-    lua_pop(L, 1);
+    printf("  %" PRIu64 " threads and %" PRIu64 " connections\n", cfg.threads, cfg.connections);
 
     uint64_t start    = time_us();
     uint64_t complete = 0;
     uint64_t bytes    = 0;
     errors errors     = { 0 };
 
-    struct hdr_histogram* latency_histogram;
+    struct hdr_histogram *latency_histogram;
     hdr_init(1, MAX_LATENCY, 3, &latency_histogram);
-    struct hdr_histogram* u_latency_histogram;
+    struct hdr_histogram *u_latency_histogram;
     hdr_init(1, MAX_LATENCY, 3, &u_latency_histogram);
 
     for (uint64_t i = 0; i < cfg.threads; i++) {
-        thread *t = &threads[i];
-        pthread_join(t->thread, NULL);
-        if (t->complete >= cfg.connections) {
-            printf("[DEBUG] Main loop exiting after max connections.\n");
-            break;
-        }
+        pthread_join(threads[i].thread, NULL);
     }
 
+    // Stop the polling thread
+    stop = 1;
+    pthread_join(polling_thread, NULL);
 
+    // Cleanup connections and resources
+    cleanup_connections();
+
+    // Statistics and output (unchanged)
     uint64_t runtime_us = time_us() - start;
-
     for (uint64_t i = 0; i < cfg.threads; i++) {
         thread *t = &threads[i];
         complete += t->complete;
@@ -298,11 +483,9 @@ int main(int argc, char **argv) {
     print_stats_header();
     print_stats("Latency", latency_stats, format_time_us);
     print_stats("Req/Sec", statistics.requests, format_metric);
-//    if (cfg.latency) print_stats_latency(latency_stats);
 
     if (cfg.latency) {
-        print_hdr_latency(latency_histogram,
-                "Recorded Latency");
+        print_hdr_latency(latency_histogram, "Recorded Latency");
         printf("----------------------------------------------------------\n");
     }
 
@@ -314,38 +497,83 @@ int main(int argc, char **argv) {
     }
 
     char *runtime_msg = format_time_us(runtime_us);
-
-    printf("  %"PRIu64" requests in %s, %sB read\n",
-            complete, runtime_msg, format_binary(bytes));
+    printf("  %" PRIu64 " requests in %s, %sB read\n", complete, runtime_msg, format_binary(bytes));
     if (errors.connect || errors.read || errors.write || errors.timeout) {
         printf("  Socket errors: connect %d, read %d, write %d, timeout %d\n",
                errors.connect, errors.read, errors.write, errors.timeout);
     }
 
-    if (errors.status) {
-        printf("  Non-2xx or 3xx responses: %d\n", errors.status);
-    }
-
     printf("Requests/sec: %9.2Lf\n", req_per_s);
     printf("Transfer/sec: %10sB\n", format_binary(bytes_per_s));
-
-    if (script_has_done(L)) {
-        script_summary(L, runtime_us, complete, bytes);
-        script_errors(L, &errors);
-        script_done(L, latency_stats, statistics.requests);
-    }
 
     return 0;
 }
 
+
+
+// void *thread_main(void *arg) {
+//     thread *thread = arg;
+//     aeEventLoop *loop = thread->loop;
+
+//     thread->cs = zcalloc(thread->connections * sizeof(connection));
+//     tinymt64_init(&thread->rand, time_us());
+//     hdr_init(1, MAX_LATENCY, 3, &thread->latency_histogram);
+//     hdr_init(1, MAX_LATENCY, 3, &thread->u_latency_histogram);
+
+//     char *request = NULL;
+//     size_t length = 0;
+
+//     if (!cfg.dynamic) {
+//         script_request(thread->L, &request, &length);
+//     }
+
+//     double throughput = (thread->throughput / 1000000.0) / thread->connections;
+
+//     connection *c = thread->cs;
+
+//     for (uint64_t i = 0; i < thread->connections; i++, c++) {
+//         if (i >= cfg.connections) {
+//             printf("[DEBUG] Max connections reached: %lu\n", cfg.connections);
+//             break;
+//         }
+//         c->thread     = thread;
+//         c->ssl        = cfg.ctx ? SSL_new(cfg.ctx) : NULL;
+//         c->request    = request;
+//         c->length     = length;
+//         c->throughput = throughput;
+//         c->catch_up_throughput = throughput * 2;
+//         c->complete   = 0;
+//         c->caught_up  = true;
+
+//         aeCreateTimeEvent(loop, i * 5, delayed_initial_connect, c, NULL);
+//     }
+
+//     uint64_t calibrate_delay = CALIBRATE_DELAY_MS + (thread->connections * 5);
+//     uint64_t timeout_delay = TIMEOUT_INTERVAL_MS + (thread->connections * 5);
+
+//     aeCreateTimeEvent(loop, calibrate_delay, calibrate, thread, NULL);
+//     aeCreateTimeEvent(loop, timeout_delay, check_timeouts, thread, NULL);
+
+//     // Check if the total completed connections across all threads matches the configured limit
+//     if (thread->complete >= cfg.connections) {
+//         printf("[DEBUG] Exiting event loop after reaching maximum connections (%lu).\n", cfg.connections);
+//         aeStop(loop); // Stop the event loop
+//     }
+
+//     thread->start = time_us();
+//     aeMain(loop);
+
+//     aeDeleteEventLoop(loop);
+//     zfree(thread->cs);
+
+//     return NULL;
+// }
+
 void *thread_main(void *arg) {
     thread *thread = arg;
-    aeEventLoop *loop = thread->loop;
 
     thread->cs = zcalloc(thread->connections * sizeof(connection));
     tinymt64_init(&thread->rand, time_us());
-    hdr_init(1, MAX_LATENCY, 3, &thread->latency_histogram);
-    hdr_init(1, MAX_LATENCY, 3, &thread->u_latency_histogram);
 
     char *request = NULL;
     size_t length = 0;
@@ -354,81 +582,146 @@ void *thread_main(void *arg) {
         script_request(thread->L, &request, &length);
     }
 
-    double throughput = (thread->throughput / 1000000.0) / thread->connections;
-
     connection *c = thread->cs;
 
     for (uint64_t i = 0; i < thread->connections; i++, c++) {
-        if (i >= cfg.connections) {
-            printf("[DEBUG] Max connections reached: %lu\n", cfg.connections);
-            break;
+        c->thread = thread;
+        c->request = request;
+        c->length = length;
+
+        if (connect_socket(thread, c) < 0) {
+            thread->errors.connect++;
+            continue;
         }
-        c->thread     = thread;
-        c->ssl        = cfg.ctx ? SSL_new(cfg.ctx) : NULL;
-        c->request    = request;
-        c->length     = length;
-        c->throughput = throughput;
-        c->catch_up_throughput = throughput * 2;
-        c->complete   = 0;
-        c->caught_up  = true;
-
-        aeCreateTimeEvent(loop, i * 5, delayed_initial_connect, c, NULL);
     }
 
-    uint64_t calibrate_delay = CALIBRATE_DELAY_MS + (thread->connections * 5);
-    uint64_t timeout_delay = TIMEOUT_INTERVAL_MS + (thread->connections * 5);
+    // Wait for polling thread to finish
+    pthread_join(polling_thread, NULL);
 
-    aeCreateTimeEvent(loop, calibrate_delay, calibrate, thread, NULL);
-    aeCreateTimeEvent(loop, timeout_delay, check_timeouts, thread, NULL);
-
-    // Check if the total completed connections across all threads matches the configured limit
-    if (thread->complete >= cfg.connections) {
-        printf("[DEBUG] Exiting event loop after reaching maximum connections (%lu).\n", cfg.connections);
-        aeStop(loop); // Stop the event loop
-    }
-
-    thread->start = time_us();
-    aeMain(loop);
-
-    aeDeleteEventLoop(loop);
     zfree(thread->cs);
-
     return NULL;
 }
 
 
 
+// static int connect_socket(thread *thread, connection *c) {
+//     struct addrinfo *addr = thread->addr;
+//     struct aeEventLoop *loop = thread->loop;
+//     int fd, flags;
+
+//     fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+
+//     flags = fcntl(fd, F_GETFL, 0);
+//     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+
+//     if (connect(fd, addr->ai_addr, addr->ai_addrlen) == -1) {
+//         if (errno != EINPROGRESS) goto error;
+//     }
+
+//     flags = 1;
+//     setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flags, sizeof(flags));
+
+//     c->latest_connect = time_us();
+
+//     flags = AE_READABLE | AE_WRITABLE;
+//     if (aeCreateFileEvent(loop, fd, flags, socket_connected, c) == AE_OK) {
+//         c->parser.data = c;
+//         c->fd = fd;
+//         return fd;
+//     }
+
+//   error:
+//     thread->errors.connect++;
+//     close(fd);
+//     return -1;
+// }
+
 static int connect_socket(thread *thread, connection *c) {
     struct addrinfo *addr = thread->addr;
-    struct aeEventLoop *loop = thread->loop;
-    int fd, flags;
+    int fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
 
-    fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+    if (fd < 0) return -1;
 
-    flags = fcntl(fd, F_GETFL, 0);
+    int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
-    if (connect(fd, addr->ai_addr, addr->ai_addrlen) == -1) {
-        if (errno != EINPROGRESS) goto error;
+    if (connect(fd, addr->ai_addr, addr->ai_addrlen) == -1 && errno != EINPROGRESS) {
+        close(fd);
+        return -1;
     }
 
-    flags = 1;
-    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flags, sizeof(flags));
+    c->fd = fd;
 
-    c->latest_connect = time_us();
+    // Add connection to global vector
+    pthread_mutex_lock(&global_connections_mutex);
+    global_connections.push_back(c);
+    pthread_mutex_unlock(&global_connections_mutex);
 
-    flags = AE_READABLE | AE_WRITABLE;
-    if (aeCreateFileEvent(loop, fd, flags, socket_connected, c) == AE_OK) {
-        c->parser.data = c;
-        c->fd = fd;
-        return fd;
-    }
-
-  error:
-    thread->errors.connect++;
-    close(fd);
-    return -1;
+    return fd;
 }
+
+
+
+
+void polling_loop() {
+    while (!stop) {
+        pthread_mutex_lock(&global_connections_mutex);
+        for (auto it = global_connections.begin(); it != global_connections.end();) {
+            connection *c = *it;
+
+            // Check if the socket is readable
+            ssize_t n = machnet_recv(c->channel_ctx, c->buf, sizeof(c->buf), NULL);
+            if (n > 0) {
+                // Process data
+                c->thread->bytes += n;
+                if (http_parser_execute(&c->parser, &parser_settings, c->buf, n) != n) {
+                    c->thread->errors.read++;
+                    it = global_connections.erase(it);
+                    continue;
+                }
+            } else if (n == 0) {
+                // No data, continue polling
+                ++it;
+                continue;
+            } else {
+                // Handle errors
+                c->thread->errors.read++;
+                it = global_connections.erase(it);
+                continue;
+            }
+
+            // Check if socket is writable
+            if (c->written < c->length) {
+                ssize_t written = machnet_send(c->channel_ctx, c->machnet_flow, c->request + c->written, c->length - c->written);
+                if (written > 0) {
+                    c->written += written;
+                } else if (written < 0) {
+                    c->thread->errors.write++;
+                    it = global_connections.erase(it);
+                    continue;
+                }
+            }
+
+            ++it;
+        }
+        pthread_mutex_unlock(&global_connections_mutex);
+
+        // Sleep briefly to prevent busy-waiting
+        usleep(1000);  // 1 ms
+    }
+}
+
+
+void cleanup_connections() {
+    pthread_mutex_lock(&global_connections_mutex);
+    for (connection *c : global_connections) {
+        close(c->fd);
+        free(c);
+    }
+    global_connections.clear();
+    pthread_mutex_unlock(&global_connections_mutex);
+}
+
 
 static int reconnect_socket(thread *thread, connection *c) {
     aeDeleteFileEvent(thread->loop, c->fd, AE_WRITABLE | AE_READABLE);
@@ -710,22 +1003,73 @@ static void socket_connected(aeEventLoop *loop, int fd, void *data, int mask) {
 
 }
 
+// static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
+//     connection *c = data;
+//     thread *thread = c->thread;
+
+//     if (!c->written) {
+//         uint64_t time_usec_to_wait = usec_to_next_send(c);
+//         if (time_usec_to_wait) {
+//             int msec_to_wait = round((time_usec_to_wait / 1000.0L) + 0.5);
+
+//             // Not yet time to send. Delay:
+//             aeDeleteFileEvent(loop, fd, AE_WRITABLE);
+//             aeCreateTimeEvent(
+//                     thread->loop, msec_to_wait, delay_request, c, NULL);
+//             return;
+//         }
+//         c->latest_write = time_us();
+//     }
+
+//     if (!c->written && cfg.dynamic) {
+//         script_request(thread->L, &c->request, &c->length);
+//     }
+
+//     char  *buf = c->request + c->written;
+//     size_t len = c->length  - c->written;
+//     size_t n;
+
+//     if (!c->written) {
+//         c->start = time_us();
+//         if (!c->has_pending) {
+//             c->actual_latency_start = c->start;
+//             c->complete_at_last_batch_start = c->complete;
+//             c->has_pending = true;
+//         }
+//         c->pending = cfg.pipeline;
+//     }
+
+//     switch (sock.write(c, buf, len, &n)) {
+//         case OK:    break;
+//         case ERROR: goto error;
+//         case RETRY: return;
+//     }
+
+//     c->written += n;
+//     if (c->written == c->length) {
+//         c->written = 0;
+//         aeDeleteFileEvent(loop, fd, AE_WRITABLE);
+//     }
+
+//     return;
+
+//   error:
+//     thread->errors.write++;
+//     reconnect_socket(thread, c);
+// }
+
 static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     connection *c = data;
     thread *thread = c->thread;
 
-    if (!c->written) {
-        uint64_t time_usec_to_wait = usec_to_next_send(c);
-        if (time_usec_to_wait) {
-            int msec_to_wait = round((time_usec_to_wait / 1000.0L) + 0.5);
-
-            // Not yet time to send. Delay:
-            aeDeleteFileEvent(loop, fd, AE_WRITABLE);
-            aeCreateTimeEvent(
-                    thread->loop, msec_to_wait, delay_request, c, NULL);
-            return;
-        }
-        c->latest_write = time_us();
+    // Check if we need to wait before sending
+    uint64_t time_usec_to_wait = usec_to_next_send(c);
+    if (time_usec_to_wait) {
+        // Delay write by skipping this event and rescheduling
+        int msec_to_wait = round((time_usec_to_wait / 1000.0L) + 0.5);
+        aeDeleteFileEvent(loop, fd, AE_WRITABLE);
+        aeCreateTimeEvent(loop, msec_to_wait, NULL, NULL, NULL); // Placeholder
+        return;
     }
 
     if (!c->written && cfg.dynamic) {
@@ -733,7 +1077,7 @@ static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     }
 
     char  *buf = c->request + c->written;
-    size_t len = c->length  - c->written;
+    size_t len = c->length - c->written;
     size_t n;
 
     if (!c->written) {
@@ -757,7 +1101,6 @@ static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
         c->written = 0;
         aeDeleteFileEvent(loop, fd, AE_WRITABLE);
     }
-
     return;
 
   error:
