@@ -753,18 +753,10 @@ static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     }
 
     c->written += n;
-    // if (c->written == c->length) {
-    //     c->written = 0;
-    //     aeDeleteFileEvent(loop, fd, AE_WRITABLE);
-    // }
-
     if (c->written == c->length) {
         c->written = 0;
-        aeDeleteFileEvent(loop, fd, AE_WRITABLE); // Remove writable event
-        aeCreateFileEvent(loop, fd, AE_READABLE, socket_readable, c); // Register readable event
-        printf("[DEBUG] AE_READABLE registered for fd %d\n", fd);
+        aeDeleteFileEvent(loop, fd, AE_WRITABLE);
     }
-
 
     return;
 
@@ -787,6 +779,10 @@ static void socket_readable(aeEventLoop *loop, int fd, void *data, int mask) {
 
         if (http_parser_execute(&c->parser, &parser_settings, c->buf, n) != n) goto error;
         c->thread->bytes += n;
+
+        // Debug print to check if `sock.readable` is called
+        printf("[DEBUG] Checking if socket is readable for fd %d\n", fd);
+
     } while (n == RECVBUF && sock.readable(c) > 0);
     // } while (n == RECVBUF && machnet_readable(c) > 0);  // Change `sock.readable` to `machnet_readable`
 
