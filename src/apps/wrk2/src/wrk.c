@@ -70,15 +70,18 @@ void connection_list_init(connection_list *list, size_t initial_capacity) {
 // Add a connection to the list
 void connection_list_add(connection_list *list, connection *conn) {
     if (list->size >= list->capacity) {
-        list->capacity *= 2; // Double the capacity
-        list->connections = realloc(list->connections, list->capacity * sizeof(connection *));
-        if (!list->connections) {
+        size_t new_capacity = list->capacity * 2;
+        connection **new_connections = realloc(list->connections, new_capacity * sizeof(connection *));
+        if (!new_connections) {
             fprintf(stderr, "[ERROR] Failed to resize connection list.\n");
-            exit(EXIT_FAILURE);
+            exit(EXIT_FAILURE); // Exit on memory allocation failure
         }
+        list->connections = new_connections;
+        list->capacity = new_capacity;
     }
     list->connections[list->size++] = conn;
 }
+
 
 // Remove a connection from the list by index
 void connection_list_remove(connection_list *list, size_t index) {
@@ -90,11 +93,18 @@ void connection_list_remove(connection_list *list, size_t index) {
 
 // Free the connection list
 void connection_list_free(connection_list *list) {
-    free(list->connections);
+    if (!list->connections) return; // Guard against double-free
+    for (size_t i = 0; i < list->size; i++) {
+        if (list->connections[i]) {
+            free(list->connections[i]); // Free each connection
+        }
+    }
+    free(list->connections); // Free the array itself
     list->connections = NULL;
     list->size = 0;
     list->capacity = 0;
 }
+
 
 
 static struct {
@@ -712,28 +722,37 @@ void *thread_main(void *arg) {
 // }
 
 static int connect_socket(thread *thread, connection *c) {
+    c = zmalloc(sizeof(connection)); // Ensure dynamic allocation
+    if (!c) {
+        fprintf(stderr, "[ERROR] Failed to allocate memory for connection.\n");
+        return -1;
+    }
+
     struct addrinfo *addr = thread->addr;
     int fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
 
-    if (fd < 0) return -1;
+    if (fd < 0) {
+        free(c); // Free if allocation failed
+        return -1;
+    }
 
     int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
     if (connect(fd, addr->ai_addr, addr->ai_addrlen) == -1 && errno != EINPROGRESS) {
         close(fd);
+        free(c); // Free on error
         return -1;
     }
 
     c->fd = fd;
-
-    // Add the connection to global_connections
     pthread_mutex_lock(&global_connections_mutex);
     connection_list_add(&global_connections, c);
     pthread_mutex_unlock(&global_connections_mutex);
 
     return fd;
 }
+
 
 
 
@@ -797,12 +816,15 @@ void cleanup_connections() {
     pthread_mutex_lock(&global_connections_mutex);
     for (size_t i = 0; i < global_connections.size; ++i) {
         connection *c = global_connections.connections[i];
-        close(c->fd);
-        free(c);
+        if (c) {
+            close(c->fd);
+            free(c); // Free the connection object
+        }
     }
-    connection_list_free(&global_connections);
+    connection_list_free(&global_connections); // Free the list structure
     pthread_mutex_unlock(&global_connections_mutex);
 }
+
 
 
 static int reconnect_socket(thread *thread, connection *c) {
