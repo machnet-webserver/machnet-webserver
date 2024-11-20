@@ -74,27 +74,24 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
         status read_status = RETRY; // Initialize with RETRY
         printf("[DEBUG] Attempting to read from port: %u\n", c->machnet_flow.src_port);
 
-        while (retries--) {
+        for (int attempt = 0; attempt < retries; ++attempt) {
             read_status = sock_read(c, &received_size);
             if (read_status == OK) {
                 printf("[DEBUG] Successfully read %zu bytes.\n", received_size);
-                break;
-            } else if (read_status == RETRY) {
-                usleep(100000);  // Wait 100ms before retrying
-            } else {
+                return OK; // Exit immediately on success
+            } else if (read_status == ERROR) {
                 printf("[ERROR] sock_read failed. Exiting read loop.\n");
-                break;
+                return ERROR; // Exit immediately on error
             }
+            usleep(100000);  // Wait 100ms before retrying
         }
 
         // If all retries are exhausted and no data received
-        if (read_status != OK) {
-            if (read_status == RETRY) {
-                printf("[ERROR] Exhausted retries. No data received (net.c).\n");
-            }
+        if (read_status == RETRY) {
+            printf("[ERROR] Exhausted retries. No data received from port: %u (net.c).\n", c->machnet_flow.src_port);
         }
 
-        return OK;
+        return ERROR;
     } else {
         fprintf(stderr, "[ERROR] Machnet connection failed to %s:%u: %s\n", remote_ip, remote_port, strerror(errno));
         machnet_detach(c->channel_ctx); // Cleanup on failure
