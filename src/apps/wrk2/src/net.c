@@ -39,7 +39,7 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
     // Always set local_ip to "10.10.1.1"
     local_ip = "10.10.1.1";
     remote_port = 8000;
-    
+
     // Validate remote_ip
     if (!remote_ip || strlen(remote_ip) == 0) {
         fprintf(stderr, "[ERROR] Invalid remote IP in sock_connect.\n");
@@ -68,42 +68,44 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
         c->machnet_flow = flow; // Store flow context
         printf("[DEBUG] Machnet connected successfully to %s:%u (net.c).\n", remote_ip, remote_port);
 
-        // Send an initial message (example)
-        const char *initial_message = "Hello from WRK2!";
-        size_t n;
-        if (sock_write(c, (char *)initial_message, strlen(initial_message), &n) != OK) {
-            fprintf(stderr, "[ERROR] Failed to send initial message (net.c).\n");
+        // Send an HTTP GET request
+        const char *http_request = "GET / HTTP/1.1\r\nHost: 10.10.1.2:8000\r\nConnection: close\r\n\r\n";
+        size_t sent_bytes;
+        if (sock_write(c, (char *)http_request, strlen(http_request), &sent_bytes) != OK) {
+            fprintf(stderr, "[ERROR] Failed to send HTTP request.\n");
             return ERROR;
         }
+        printf("[DEBUG] Sent HTTP request:\n%s\n", http_request);
 
-        // Check for immediate data reception
-        printf("[DEBUG] Checking for incoming data after sending initial message.\n");
-        MachnetFlow_t flow_info;
-        ssize_t bytes_received = machnet_recv(c->channel_ctx, c->buf, sizeof(c->buf), &flow_info);
+        // Receive and check for HTTP response
+        char response[2048]; // Buffer for the response
+        ssize_t bytes_received = machnet_recv(c->channel_ctx, response, sizeof(response) - 1, &flow);
         if (bytes_received > 0) {
-            printf("[DEBUG] Received %ld bytes after connection (net.c):\n", bytes_received);
-            for (ssize_t i = 0; i < bytes_received; i++) {
-                char ch = c->buf[i];
-                if (isprint(ch)) {
-                    putchar(ch);  // Print printable characters
-                } else {
-                    printf("\\x%02x", (unsigned char)ch);  // Hex for non-printable characters
-                }
-            }
-            putchar('\n');
-        } else if (bytes_received == 0) {
-            printf("[DEBUG] No immediate data available after connection (net.c).\n");
-        } else {
-            fprintf(stderr, "[ERROR] machnet_recv failed after connection: %s\n", strerror(errno));
-        }
+            response[bytes_received] = '\0'; // Null-terminate the received response
+            printf("[DEBUG] Received HTTP response:\n%s\n", response);
 
-        return OK;
+            // Check if the response contains "HTTP/1.1 200 OK"
+            if (strstr(response, "HTTP/1.1 200 OK")) {
+                printf("[DEBUG] Server replied with HTTP 200 OK.\n");
+                return OK;
+            } else {
+                printf("[DEBUG] Server did not reply with HTTP 200 OK.\n");
+                return ERROR;
+            }
+        } else if (bytes_received == 0) {
+            printf("[DEBUG] No data received from the server.\n");
+            return RETRY;
+        } else {
+            fprintf(stderr, "[ERROR] machnet_recv failed: %s\n", strerror(errno));
+            return ERROR;
+        }
     } else {
         fprintf(stderr, "[ERROR] Machnet connection failed to %s:%u: %s\n", remote_ip, remote_port, strerror(errno));
         machnet_detach(c->channel_ctx); // Cleanup on failure
         return ERROR;
     }
 }
+
 
 
 
