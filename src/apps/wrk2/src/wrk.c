@@ -13,6 +13,7 @@
 
 
 pthread_mutex_t global_connections_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_t polling_thread;
 
 // Max recordable latency of 1 day
 #define MAX_LATENCY 24L * 60 * 60 * 1000000
@@ -101,8 +102,15 @@ static struct {
     pthread_mutex_t mutex;
 } statistics;
 
+// Wrapper function for sock.connect
+status sock_connect_wrapper(connection *conn, char *host) {
+    // Adjust parameters as necessary
+    return sock_connect(conn, host, "default_service", 80);
+}
+
 static struct sock sock = {
-    .connect  = sock_connect,
+    // .connect  = sock_connect,
+    .connect  = sock_connect_wrapper,
     .close    = sock_close,
     .read     = sock_read,
     .write    = sock_write,
@@ -663,7 +671,7 @@ void *thread_main(void *arg) {
     }
 
     // Wait for polling thread to finish
-    pthread_join(polling_thread, NULL);
+    // pthread_join(polling_thread, NULL);
 
     zfree(thread->cs);
     return NULL;
@@ -731,7 +739,7 @@ static int connect_socket(thread *thread, connection *c) {
 
 
 
-void polling_loop() {
+void *polling_loop(void *arg) {
     while (!stop) {
         pthread_mutex_lock(&global_connections_mutex);
         for (size_t i = 0; i < global_connections.size; ++i) {
