@@ -655,37 +655,58 @@ int main(int argc, char **argv) {
 // }
 
 void *thread_main(void *arg) {
-    thread *thread = arg;
+    thread *t = arg;
 
-    thread->cs = zcalloc(thread->connections * sizeof(connection));
-    tinymt64_init(&thread->rand, time_us());
-
-    char *request = NULL;
-    size_t length = 0;
-
-    if (!cfg.dynamic) {
-        script_request(thread->L, &request, &length);
+    // Create thread-local Lua state
+    lua_State *L = luaL_newstate();
+    if (!L) {
+        fprintf(stderr, "[ERROR] Failed to initialize Lua state for thread.\n");
+        return NULL;
     }
 
-    connection *c = thread->cs;
+    luaL_openlibs(L); // Load Lua libraries
 
-    for (uint64_t i = 0; i < thread->connections; i++, c++) {
-        c->thread = thread;
-        c->request = request;
-        c->length = length;
+    // Create the `wrk` table in Lua
+    lua_newtable(L); // Create a new table
+    lua_pushstring(L, cfg.host); // Push the host
+    lua_setfield(L, -2, "host"); // wrk.host = cfg.host
+    lua_pushstring(L, cfg.port); // Push the port
+    lua_setfield(L, -2, "port"); // wrk.port = cfg.port
+    lua_setglobal(L, "wrk");     // Set `wrk` as a global table
 
-        if (connect_socket(thread, c) < 0) {
-            thread->errors.connect++;
-            continue;
+    // Store Lua state in thread
+    t->L = L;
+
+    // Prepare connections for this thread
+    t->cs = zcalloc(t->connections * sizeof(connection));
+    if (!t->cs) {
+        fprintf(stderr, "[ERROR] Failed to allocate connections for thread.\n");
+        lua_close(L);
+        return NULL;
+    }
+
+    // Initialize connections
+    for (uint64_t i = 0; i < t->connections; i++) {
+        connection *c = &t->cs[i];
+        c->thread = t;
+
+        if (connect_socket(t, c) < 0) {
+            t->errors.connect++;
         }
     }
 
-    // Wait for polling thread to finish
-    // pthread_join(polling_thread, NULL);
+    // Main event loop
+    t->start = time_us();
+    aeMain(t->loop);
 
-    zfree(thread->cs);
+    // Cleanup
+    aeDeleteEventLoop(t->loop);
+    lua_close(L); // Close Lua state
+    zfree(t->cs);
+
     return NULL;
 }
+
 
 
 
@@ -722,32 +743,24 @@ void *thread_main(void *arg) {
 // }
 
 static int connect_socket(thread *thread, connection *c) {
-    c = zmalloc(sizeof(connection)); // Ensure dynamic allocation
-    if (!c) {
-        fprintf(stderr, "[ERROR] Failed to allocate memory for connection.\n");
-        return -1;
-    }
-
     struct addrinfo *addr = thread->addr;
     int fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
 
-    if (fd < 0) {
-        free(c); // Free if allocation failed
-        return -1;
-    }
+    if (fd < 0) return -1;
 
     int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
     if (connect(fd, addr->ai_addr, addr->ai_addrlen) == -1 && errno != EINPROGRESS) {
         close(fd);
-        free(c); // Free on error
         return -1;
     }
 
     c->fd = fd;
+    c->thread = thread; // Assign thread pointer for context
+
     pthread_mutex_lock(&global_connections_mutex);
-    connection_list_add(&global_connections, c);
+    connection_list_add(&global_connections, c); // Add to global list
     pthread_mutex_unlock(&global_connections_mutex);
 
     return fd;
@@ -764,41 +777,42 @@ void *polling_loop(void *arg) {
         for (size_t i = 0; i < global_connections.size; ++i) {
             connection *c = global_connections.connections[i];
 
-            // Check if the socket is readable
+            if (!c) continue; // Ensure connection is valid
+
+            // Read from socket
             ssize_t n = machnet_recv(c->channel_ctx, c->buf, sizeof(c->buf), NULL);
             if (n > 0) {
-                // Process data
                 c->thread->bytes += n;
                 if (http_parser_execute(&c->parser, &parser_settings, c->buf, n) != n) {
                     c->thread->errors.read++;
-                    connection_list_remove(&global_connections, i--); // Adjust index after removal
+                    connection_list_remove(&global_connections, i--); // Adjust index
                     continue;
                 }
             } else if (n < 0) {
-                // Handle errors
                 c->thread->errors.read++;
-                connection_list_remove(&global_connections, i--); // Adjust index after removal
+                connection_list_remove(&global_connections, i--); // Adjust index
                 continue;
             }
 
-            // Check if the socket is writable
+            // Write to socket
             if (c->written < c->length) {
                 ssize_t written = machnet_send(c->channel_ctx, c->machnet_flow, c->request + c->written, c->length - c->written);
                 if (written > 0) {
                     c->written += written;
                 } else if (written < 0) {
                     c->thread->errors.write++;
-                    connection_list_remove(&global_connections, i--); // Adjust index after removal
+                    connection_list_remove(&global_connections, i--); // Adjust index
                     continue;
                 }
             }
         }
         pthread_mutex_unlock(&global_connections_mutex);
 
-        // Sleep briefly to prevent busy-waiting
-        usleep(1000); // 1 ms
+        usleep(1000); // Prevent busy-waiting
     }
+    return NULL;
 }
+
 
 
 
@@ -818,7 +832,7 @@ void cleanup_connections() {
         connection *c = global_connections.connections[i];
         if (c) {
             close(c->fd);
-            free(c); // Free the connection object
+            free(c); // Free the connection
         }
     }
     connection_list_free(&global_connections); // Free the list structure
