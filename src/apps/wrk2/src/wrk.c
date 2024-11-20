@@ -7,8 +7,11 @@
 #include "stats.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
-connection_list global_connections; // Replace vector
+
 pthread_mutex_t global_connections_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Max recordable latency of 1 day
@@ -40,8 +43,17 @@ typedef struct {
     size_t capacity;          // Total allocated capacity
 } connection_list;
 
-#include <stdlib.h>
-#include <string.h>
+connection_list global_connections; // Replace vector
+
+// Function prototypes
+void connection_list_init(connection_list *list, size_t initial_capacity);
+void connection_list_add(connection_list *list, connection *conn);
+void connection_list_remove(connection_list *list, size_t index);
+void connection_list_free(connection_list *list);
+void cleanup_connections(void);
+void *polling_loop(void *arg);  // Polling loop function
+
+
 
 // Initialize the connection list
 void connection_list_init(connection_list *list, size_t initial_capacity) {
