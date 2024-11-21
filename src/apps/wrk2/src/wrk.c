@@ -362,8 +362,9 @@ void *thread_main(void *arg) {
 
     double throughput = (thread->throughput / 1000000.0) / thread->connections;
 
-    // Initialize connections
     connection *c = thread->cs;
+
+    // Schedule initial connections
     for (uint64_t i = 0; i < thread->connections; i++, c++) {
         if (i >= cfg.connections) {
             printf("[DEBUG] Max connections reached: %lu\n", cfg.connections);
@@ -378,7 +379,7 @@ void *thread_main(void *arg) {
         c->complete   = 0;
         c->caught_up  = true;
 
-        // Schedule delayed initial connect for each connection
+        // Schedule delayed connection
         aeCreateTimeEvent(loop, i * 5, delayed_initial_connect, c, NULL);
     }
 
@@ -388,33 +389,24 @@ void *thread_main(void *arg) {
     aeCreateTimeEvent(loop, calibrate_delay, calibrate, thread, NULL);
     aeCreateTimeEvent(loop, timeout_delay, check_timeouts, thread, NULL);
 
-    // Schedule polling as a recurring time event
-    aeCreateTimeEvent(loop, 1, poll_connections_callback, thread, NULL);
-
     // Start the event loop
     thread->start = time_us();
     aeMain(loop);
 
-    // Clean up resources after the loop ends
+    // After the event loop has started and connections are initialized, poll if required
+    c = thread->cs;
+    for (uint64_t i = 0; i < thread->connections; i++, c++) {
+        if (c->complete == 0) {  // Check connections that haven't completed
+            printf("[DEBUG] Polling connection %lu after sending a message.\n", i);
+            poll_machnet_connections(thread);
+        }
+    }
+
+    // Clean up resources after the event loop ends
     aeDeleteEventLoop(loop);
     zfree(thread->cs);
 
     return NULL;
-}
-
-int poll_connections_callback(aeEventLoop *loop, long long id, void *arg) {
-    if (!arg) {
-        fprintf(stderr, "[ERROR] Null argument in poll_connections_callback.\n");
-        return AE_NOMORE;
-    }
-
-    thread *thread = (thread *)arg;
-
-    // Poll all connections
-    poll_machnet_connections(thread);
-
-    // Reschedule this callback for periodic polling
-    return 1;  // Return the interval (in milliseconds) for the next call
 }
 
 
