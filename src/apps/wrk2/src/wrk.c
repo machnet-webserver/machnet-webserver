@@ -949,37 +949,37 @@ static void print_stats_latency(stats *stats) {
 }
 
 void poll_reads(thread *thread) {
-    connection *c = thread->cs;  // Get all connections for the thread.
+    connection *c = thread->cs;  // All connections for the thread
 
     for (uint64_t i = 0; i < thread->connections; i++, c++) {
         size_t rx_size;
         MachnetFlow_t rx_flow;
 
-        // Attempt to receive data
-        rx_size = machnet_recv(c->thread->channel_ctx, c->buf, RECVBUF, &rx_flow);
+        // Receive data from Machnet
+        rx_size = machnet_recv(c->channel_ctx, c->buf, sizeof(c->buf), &rx_flow);
 
         if (rx_size > 0) {
             c->latest_read = time_us();  // Update last read time
-            c->thread->bytes += rx_size;
+            printf("[DEBUG] Received %zu bytes from Machnet (poll_reads).\n", rx_size);
 
-            // Parse the received data
+            // Process the received data (e.g., HTTP parsing)
             if (http_parser_execute(&c->parser, &parser_settings, c->buf, rx_size) != rx_size) {
-                fprintf(stderr, "HTTP parse error on connection %lu\n", i);
-                reconnect_socket(thread, c);  // Handle reconnect if necessary.
+                fprintf(stderr, "[ERROR] HTTP parse error in poll_reads.\n");
+                reconnect_socket(thread, c); // Handle reconnect
             }
         } else if (rx_size == 0) {
-            // No data available; continue to next connection.
+            // No data available
             continue;
         } else {
-            // Error handling for machnet_recv
-            fprintf(stderr, "Receive error on connection %lu\n", i);
+            // Handle receive errors
+            fprintf(stderr, "[ERROR] machnet_recv failed in poll_reads.\n");
             reconnect_socket(thread, c);
         }
 
-        // Check for timeout
+        // Timeout logic
         uint64_t now = time_us();
         if (now - c->latest_read > cfg.timeout * 1000) {
-            fprintf(stderr, "Timeout on connection %lu\n", i);
+            fprintf(stderr, "[ERROR] Connection timeout in poll_reads.\n");
             reconnect_socket(thread, c);
         }
     }
