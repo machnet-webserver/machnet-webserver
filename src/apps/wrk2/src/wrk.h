@@ -29,6 +29,11 @@
 
 extern char *local_ip; // Declare global local_ip in net.h
 
+typedef enum {
+    OK,
+    ERROR,
+    RETRY
+} status;
 
 typedef struct {
     pthread_t thread;

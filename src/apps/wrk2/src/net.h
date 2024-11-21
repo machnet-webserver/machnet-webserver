@@ -6,9 +6,7 @@
 #include <sys/time.h> 
 #include <openssl/ssl.h>
 #include "wrk.h"
-
-// Forward declare `connection` instead of including `wrk.h`
-struct connection;
+#include "machnet.h"  // for machnet API
 
 typedef enum {
     OK,
