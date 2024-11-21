@@ -91,6 +91,7 @@ typedef struct connection {
     uint64_t latest_expected_start;
     uint64_t latest_connect;
     uint64_t latest_write;
+    uint64_t latest_read;  // Timestamp of the last read operation
 
     void *channel_ctx;  // Added this for Machnet context
     MachnetFlow_t machnet_flow; // Added this for Machnet flow information

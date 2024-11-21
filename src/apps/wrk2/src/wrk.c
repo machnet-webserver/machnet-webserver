@@ -633,7 +633,9 @@ static int response_complete(http_parser *parser) {
         printf("This wil never ever ever happen...");
         printf("But when it does. The following information will help in debugging");
         printf("response_complete:\n");
-        printf("  expected_latency_timing = %lld\n", expected_latency_timing);
+        // printf("  expected_latency_timing = %lld\n", expected_latency_timing);
+        printf("  expected_latency_timing = %ld\n", expected_latency_timing);
+
         printf("  now = %lld\n", now);
         printf("  expected_latency_start = %lld\n", expected_latency_start);
         printf("  c->thread_start = %lld\n", c->thread_start);
