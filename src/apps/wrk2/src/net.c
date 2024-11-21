@@ -129,7 +129,7 @@ status sock_read(connection *c, size_t *n) {
         printf("[DEBUG] Received %ld bytes (net.c).\n", bytes_received);
         return OK;
     } else if (bytes_received == 0) {
-        printf("[DEBUG] No data available to read (net.c).\n");
+        // printf("[DEBUG] No data available to read (net.c).\n");
         return RETRY;
     } else {
         fprintf(stderr, "[ERROR] machnet_recv failed: %s\n", strerror(errno));
