@@ -343,50 +343,6 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-// void *thread_main(void *arg) {
-//     thread *thread = arg;
-
-//     thread->cs = zcalloc(thread->connections * sizeof(connection));
-//     tinymt64_init(&thread->rand, time_us());
-//     hdr_init(1, MAX_LATENCY, 3, &thread->latency_histogram);
-//     hdr_init(1, MAX_LATENCY, 3, &thread->u_latency_histogram);
-
-//     char *request = NULL;
-//     size_t length = 0;
-
-//     if (!cfg.dynamic) {
-//         script_request(thread->L, &request, &length);
-//     }
-
-//     double throughput = (thread->throughput / 1000000.0) / thread->connections;
-
-//     // Initialize connections
-//     connection *c = thread->cs;
-//     for (uint64_t i = 0; i < thread->connections; i++, c++) {
-//         c->thread     = thread;
-//         c->ssl        = cfg.ctx ? SSL_new(cfg.ctx) : NULL;
-//         c->request    = request;
-//         c->length     = length;
-//         c->throughput = throughput;
-//         c->catch_up_throughput = throughput * 2;
-//         c->complete   = 0;
-//         c->caught_up  = true;
-
-//         connect_socket(thread, c);  // Directly establish the connection
-//     }
-
-//     uint64_t stop_at = thread->stop_at;
-
-//     // Main polling loop
-//     while (!stop && time_us() < stop_at) {
-//         poll_machnet_connections(thread);  // Poll all connections
-//         // usleep(100);  // Add a small sleep to avoid busy-waiting
-//     }
-
-//     zfree(thread->cs);
-//     return NULL;
-// }
-
 void *thread_main(void *arg) {
     thread *thread = arg;
     aeEventLoop *loop = thread->loop;
@@ -430,6 +386,13 @@ void *thread_main(void *arg) {
     aeCreateTimeEvent(loop, calibrate_delay, calibrate, thread, NULL);
     aeCreateTimeEvent(loop, timeout_delay, check_timeouts, thread, NULL);
 
+    // Main polling loop
+    uint64_t stop_at = thread->stop_at;
+    while (!stop && time_us() < stop_at) {
+        poll_machnet_connections(thread);  // Poll all connections
+        usleep(100);  // Add a small sleep to avoid busy-waiting
+    }
+
     // Check if the total completed connections across all threads matches the configured limit
     if (thread->complete >= cfg.connections) {
         printf("[DEBUG] Exiting event loop after reaching maximum connections (%lu).\n", cfg.connections);
@@ -444,6 +407,65 @@ void *thread_main(void *arg) {
 
     return NULL;
 }
+
+
+// void *thread_main(void *arg) {
+//     thread *thread = arg;
+//     aeEventLoop *loop = thread->loop;
+
+//     thread->cs = zcalloc(thread->connections * sizeof(connection));
+//     tinymt64_init(&thread->rand, time_us());
+//     hdr_init(1, MAX_LATENCY, 3, &thread->latency_histogram);
+//     hdr_init(1, MAX_LATENCY, 3, &thread->u_latency_histogram);
+
+//     char *request = NULL;
+//     size_t length = 0;
+
+//     if (!cfg.dynamic) {
+//         script_request(thread->L, &request, &length);
+//     }
+
+//     double throughput = (thread->throughput / 1000000.0) / thread->connections;
+
+//     connection *c = thread->cs;
+
+//     for (uint64_t i = 0; i < thread->connections; i++, c++) {
+//         if (i >= cfg.connections) {
+//             printf("[DEBUG] Max connections reached: %lu\n", cfg.connections);
+//             break;
+//         }
+//         c->thread     = thread;
+//         c->ssl        = cfg.ctx ? SSL_new(cfg.ctx) : NULL;
+//         c->request    = request;
+//         c->length     = length;
+//         c->throughput = throughput;
+//         c->catch_up_throughput = throughput * 2;
+//         c->complete   = 0;
+//         c->caught_up  = true;
+
+//         aeCreateTimeEvent(loop, i * 5, delayed_initial_connect, c, NULL);
+//     }
+
+//     uint64_t calibrate_delay = CALIBRATE_DELAY_MS + (thread->connections * 5);
+//     uint64_t timeout_delay = TIMEOUT_INTERVAL_MS + (thread->connections * 5);
+
+//     aeCreateTimeEvent(loop, calibrate_delay, calibrate, thread, NULL);
+//     aeCreateTimeEvent(loop, timeout_delay, check_timeouts, thread, NULL);
+
+//     // Check if the total completed connections across all threads matches the configured limit
+//     if (thread->complete >= cfg.connections) {
+//         printf("[DEBUG] Exiting event loop after reaching maximum connections (%lu).\n", cfg.connections);
+//         aeStop(loop); // Stop the event loop
+//     }
+
+//     thread->start = time_us();
+//     aeMain(loop);
+
+//     aeDeleteEventLoop(loop);
+//     zfree(thread->cs);
+
+//     return NULL;
+// }
 
 
 static int connect_socket(thread *thread, connection *c) {
