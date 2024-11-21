@@ -104,6 +104,7 @@ typedef struct config {
     bool     dynamic;
     bool     record_all_responses;
     char    *host;
+    char    *port;   // Port number (new addition)
     char    *script;
     SSL_CTX *ctx;
 } config;
