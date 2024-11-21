@@ -26,6 +26,9 @@
 #define CALIBRATE_DELAY_MS  10000
 #define TIMEOUT_INTERVAL_MS 2000
 
+extern char *local_ip; // Declare global local_ip in net.h
+
+
 typedef struct {
     pthread_t thread;
     aeEventLoop *loop;

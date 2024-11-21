@@ -10,6 +10,7 @@
 #define MAX_LATENCY 24L * 60 * 60 * 1000000
 
 config cfg;
+char *local_ip = "10.10.1.1"; // Assign your local IP address
 
 // this is moved to wrk.h
 // static struct config {
@@ -35,7 +36,8 @@ static struct {
 } statistics;
 
 static struct sock sock = {
-    .connect  = sock_connect,
+    // .connect  = sock_connect,
+    .connect  = wrapper_sock_connect,
     .close    = sock_close,
     .read     = sock_read,
     .write    = sock_write,
@@ -692,6 +694,14 @@ static int response_complete(http_parser *parser) {
   done:
     return 0;
 }
+
+// Wrapper function to adapt sock.connect to the new sock_connect signature
+status wrapper_sock_connect(connection *c, char *remote_ip) {
+    extern char *local_ip; // Use global `local_ip` (e.g., 10.10.1.1)
+    uint16_t remote_port = 8000; // The target port
+    return sock_connect(c, local_ip, remote_ip, remote_port);
+}
+
 
 static void socket_connected(aeEventLoop *loop, int fd, void *data, int mask) {
     connection *c = data;
