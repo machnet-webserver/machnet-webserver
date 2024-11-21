@@ -118,4 +118,9 @@ extern config cfg;
 // Declare poll_reads function
 void poll_reads(thread *thread);
 
+// Declare new functions
+void poll_machnet_connections(thread *thread);
+
+
+
 #endif /* WRK_H */
