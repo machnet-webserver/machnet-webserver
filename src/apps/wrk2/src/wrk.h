@@ -120,6 +120,7 @@ void poll_reads(thread *thread);
 
 // Declare new functions
 void poll_machnet_connections(thread *thread);
+status sock_connect_wrapper(connection *c, char *host);
 
 
 

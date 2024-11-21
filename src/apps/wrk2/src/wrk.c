@@ -5,6 +5,7 @@
 #include "main.h"
 #include "hdr_histogram.h"
 #include "stats.h"
+#include "net.h" 
 
 // Max recordable latency of 1 day
 #define MAX_LATENCY 24L * 60 * 60 * 1000000
