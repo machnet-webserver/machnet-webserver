@@ -347,6 +347,7 @@ void *thread_main(void *arg) {
     thread *thread = arg;
     aeEventLoop *loop = thread->loop;
 
+    // Initialize thread resources
     thread->cs = zcalloc(thread->connections * sizeof(connection));
     tinymt64_init(&thread->rand, time_us());
     hdr_init(1, MAX_LATENCY, 3, &thread->latency_histogram);
@@ -361,8 +362,8 @@ void *thread_main(void *arg) {
 
     double throughput = (thread->throughput / 1000000.0) / thread->connections;
 
+    // Initialize connections
     connection *c = thread->cs;
-
     for (uint64_t i = 0; i < thread->connections; i++, c++) {
         if (i >= cfg.connections) {
             printf("[DEBUG] Max connections reached: %lu\n", cfg.connections);
@@ -377,35 +378,38 @@ void *thread_main(void *arg) {
         c->complete   = 0;
         c->caught_up  = true;
 
+        // Schedule delayed initial connect for each connection
         aeCreateTimeEvent(loop, i * 5, delayed_initial_connect, c, NULL);
     }
 
+    // Schedule periodic tasks
     uint64_t calibrate_delay = CALIBRATE_DELAY_MS + (thread->connections * 5);
     uint64_t timeout_delay = TIMEOUT_INTERVAL_MS + (thread->connections * 5);
-
     aeCreateTimeEvent(loop, calibrate_delay, calibrate, thread, NULL);
     aeCreateTimeEvent(loop, timeout_delay, check_timeouts, thread, NULL);
 
-    // Main polling loop
-    uint64_t stop_at = thread->stop_at;
-    while (!stop && time_us() < stop_at) {
-        poll_machnet_connections(thread);  // Poll all connections
-        usleep(100);  // Add a small sleep to avoid busy-waiting
-    }
+    // Schedule polling as a recurring time event
+    aeCreateTimeEvent(loop, 1, poll_connections_callback, thread, NULL);
 
-    // Check if the total completed connections across all threads matches the configured limit
-    if (thread->complete >= cfg.connections) {
-        printf("[DEBUG] Exiting event loop after reaching maximum connections (%lu).\n", cfg.connections);
-        aeStop(loop); // Stop the event loop
-    }
-
+    // Start the event loop
     thread->start = time_us();
     aeMain(loop);
 
+    // Clean up resources after the loop ends
     aeDeleteEventLoop(loop);
     zfree(thread->cs);
 
     return NULL;
+}
+
+int poll_connections_callback(aeEventLoop *loop, long long id, void *arg) {
+    thread *thread = (thread *)arg;
+
+    // Poll all connections
+    poll_machnet_connections(thread);
+
+    // Reschedule this callback for periodic polling
+    return 1;  // Return the interval (in milliseconds) for the next call
 }
 
 

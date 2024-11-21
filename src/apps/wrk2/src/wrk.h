@@ -127,6 +127,7 @@ extern config cfg;
 // Declare new functions
 void poll_machnet_connections(thread *thread);
 status sock_connect_wrapper(connection *c, char *host);
+int poll_connections_callback(aeEventLoop *loop, long long id, void *arg);
 
 
 
