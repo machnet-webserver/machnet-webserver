@@ -5,35 +5,38 @@
 #include <stdint.h>
 #include <sys/time.h> 
 #include <openssl/ssl.h>
-#include "machnet.h"  // For Machnet API
+#include "wrk.h"
+#include "machnet.h"  // for machnet API
 
-// Forward declaration of `connection`
-struct connection;
 
-// Define the `status` type
 typedef enum {
     OK,
     ERROR,
     RETRY
 } status;
 
-// Define the `sock` struct
 struct sock {
-    status (*connect)(struct connection *, char *);
-    status (*close)(struct connection *);
-    status (*read)(struct connection *, size_t *);
-    status (*write)(struct connection *, char *, size_t, size_t *);
-    size_t (*readable)(struct connection *);
+    status ( *connect)(connection *, char *);
+    status (   *close)(connection *);
+    status (    *read)(connection *, size_t *);
+    status (   *write)(connection *, char *, size_t, size_t *);
+    size_t (*readable)(connection *); // Added this line
+
 };
 
 // Declare global variable
 extern char *local_ip;
 
-// Function prototypes
-status sock_connect(struct connection *c, char *local_ip, char *remote_ip, uint16_t remote_port);
-status sock_close(struct connection *);
-status sock_read(struct connection *, size_t *);
-status sock_write(struct connection *, char *, size_t, size_t *);
-size_t sock_readable(struct connection *);
+status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t remote_port);
+status sock_close(connection *);
+status sock_read(connection *, size_t *);
+status sock_write(connection *, char *, size_t, size_t *);
+size_t sock_readable(connection *);
+
+// Machnet changes
+// status machnet_connect_handler(connection *, char *);       // Machnet connection handler
+// status machnet_close_handler(connection *);                 // Machnet close handler
+// status machnet_read_handler(connection *, size_t *);        // Machnet read handler
+// status machnet_write_handler(connection *c, char *buf, size_t len, size_t *n);
 
 #endif /* NET_H */
