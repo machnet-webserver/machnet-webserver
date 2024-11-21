@@ -17,6 +17,7 @@
 #include "http_parser.h"
 #include "hdr_histogram.h"
 #include "machnet.h"  // Include machnet.h
+#include "net.h"
 
 #define VERSION  "4.0.0"
 #define RECVBUF  8192
@@ -115,8 +116,6 @@ typedef struct config {
 // make cfg accessible globally??
 extern config cfg;
 
-// Declare poll_reads function
-void poll_reads(thread *thread);
 
 // Declare new functions
 void poll_machnet_connections(thread *thread);
