@@ -343,8 +343,53 @@ int main(int argc, char **argv) {
     return 0;
 }
 
+// void *thread_main(void *arg) {
+//     thread *thread = arg;
+
+//     thread->cs = zcalloc(thread->connections * sizeof(connection));
+//     tinymt64_init(&thread->rand, time_us());
+//     hdr_init(1, MAX_LATENCY, 3, &thread->latency_histogram);
+//     hdr_init(1, MAX_LATENCY, 3, &thread->u_latency_histogram);
+
+//     char *request = NULL;
+//     size_t length = 0;
+
+//     if (!cfg.dynamic) {
+//         script_request(thread->L, &request, &length);
+//     }
+
+//     double throughput = (thread->throughput / 1000000.0) / thread->connections;
+
+//     // Initialize connections
+//     connection *c = thread->cs;
+//     for (uint64_t i = 0; i < thread->connections; i++, c++) {
+//         c->thread     = thread;
+//         c->ssl        = cfg.ctx ? SSL_new(cfg.ctx) : NULL;
+//         c->request    = request;
+//         c->length     = length;
+//         c->throughput = throughput;
+//         c->catch_up_throughput = throughput * 2;
+//         c->complete   = 0;
+//         c->caught_up  = true;
+
+//         connect_socket(thread, c);  // Directly establish the connection
+//     }
+
+//     uint64_t stop_at = thread->stop_at;
+
+//     // Main polling loop
+//     while (!stop && time_us() < stop_at) {
+//         poll_machnet_connections(thread);  // Poll all connections
+//         // usleep(100);  // Add a small sleep to avoid busy-waiting
+//     }
+
+//     zfree(thread->cs);
+//     return NULL;
+// }
+
 void *thread_main(void *arg) {
     thread *thread = arg;
+    aeEventLoop *loop = thread->loop;
 
     thread->cs = zcalloc(thread->connections * sizeof(connection));
     tinymt64_init(&thread->rand, time_us());
@@ -360,9 +405,13 @@ void *thread_main(void *arg) {
 
     double throughput = (thread->throughput / 1000000.0) / thread->connections;
 
-    // Initialize connections
     connection *c = thread->cs;
+
     for (uint64_t i = 0; i < thread->connections; i++, c++) {
+        if (i >= cfg.connections) {
+            printf("[DEBUG] Max connections reached: %lu\n", cfg.connections);
+            break;
+        }
         c->thread     = thread;
         c->ssl        = cfg.ctx ? SSL_new(cfg.ctx) : NULL;
         c->request    = request;
@@ -372,21 +421,29 @@ void *thread_main(void *arg) {
         c->complete   = 0;
         c->caught_up  = true;
 
-        connect_socket(thread, c);  // Directly establish the connection
+        aeCreateTimeEvent(loop, i * 5, delayed_initial_connect, c, NULL);
     }
 
-    uint64_t stop_at = thread->stop_at;
+    uint64_t calibrate_delay = CALIBRATE_DELAY_MS + (thread->connections * 5);
+    uint64_t timeout_delay = TIMEOUT_INTERVAL_MS + (thread->connections * 5);
 
-    // Main polling loop
-    while (!stop && time_us() < stop_at) {
-        poll_machnet_connections(thread);  // Poll all connections
-        // usleep(100);  // Add a small sleep to avoid busy-waiting
+    aeCreateTimeEvent(loop, calibrate_delay, calibrate, thread, NULL);
+    aeCreateTimeEvent(loop, timeout_delay, check_timeouts, thread, NULL);
+
+    // Check if the total completed connections across all threads matches the configured limit
+    if (thread->complete >= cfg.connections) {
+        printf("[DEBUG] Exiting event loop after reaching maximum connections (%lu).\n", cfg.connections);
+        aeStop(loop); // Stop the event loop
     }
 
+    thread->start = time_us();
+    aeMain(loop);
+
+    aeDeleteEventLoop(loop);
     zfree(thread->cs);
+
     return NULL;
 }
-
 
 
 static int connect_socket(thread *thread, connection *c) {
@@ -635,16 +692,15 @@ static int response_complete(http_parser *parser) {
         printf("response_complete:\n");
         // printf("  expected_latency_timing = %lld\n", expected_latency_timing);
         printf("  expected_latency_timing = %ld\n", expected_latency_timing);
-
-        printf("  now = %lld\n", now);
-        printf("  expected_latency_start = %lld\n", expected_latency_start);
-        printf("  c->thread_start = %lld\n", c->thread_start);
-        printf("  c->complete = %lld\n", c->complete);
+        printf("  now = %ld\n", now);
+        printf("  expected_latency_start = %ld\n", expected_latency_start);
+        printf("  c->thread_start = %ld\n", c->thread_start);
+        printf("  c->complete = %ld\n", c->complete);
         printf("  throughput = %g\n", c->throughput);
-        printf("  latest_should_send_time = %lld\n", c->latest_should_send_time);
-        printf("  latest_expected_start = %lld\n", c->latest_expected_start);
-        printf("  latest_connect = %lld\n", c->latest_connect);
-        printf("  latest_write = %lld\n", c->latest_write);
+        printf("  latest_should_send_time = %ld\n", c->latest_should_send_time);
+        printf("  latest_expected_start = %ld\n", c->latest_expected_start);
+        printf("  latest_connect = %ld\n", c->latest_connect);
+        printf("  latest_write = %ld\n", c->latest_write);
 
         expected_latency_start = c->thread_start +
                 ((c->complete ) / c->throughput);
