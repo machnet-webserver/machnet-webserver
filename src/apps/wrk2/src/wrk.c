@@ -380,7 +380,7 @@ void *thread_main(void *arg) {
     // Main polling loop
     while (!stop && time_us() < stop_at) {
         poll_machnet_connections(thread);  // Poll all connections
-        usleep(100);  // Add a small sleep to avoid busy-waiting
+        // usleep(100);  // Add a small sleep to avoid busy-waiting
     }
 
     zfree(thread->cs);
