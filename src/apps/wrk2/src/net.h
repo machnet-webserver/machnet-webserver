@@ -8,6 +8,8 @@
 #include "wrk.h"
 #include "machnet.h"  // for machnet API
 
+// Forward declare `connection` instead of including `wrk.h`
+struct connection;
 
 typedef enum {
     OK,
