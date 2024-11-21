@@ -1,6 +1,7 @@
 #ifndef NET_H
 #define NET_H
 
+#include "types.h"
 #include "config.h"
 #include <stdint.h>
 #include <sys/time.h> 
@@ -9,11 +10,11 @@
 #include "machnet.h"  // for machnet API
 
 
-typedef enum {
-    OK,
-    ERROR,
-    RETRY
-} status;
+// typedef enum {
+//     OK,
+//     ERROR,
+//     RETRY
+// } status;
 
 struct sock {
     status ( *connect)(connection *, char *);
