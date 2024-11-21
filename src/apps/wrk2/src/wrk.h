@@ -7,17 +7,14 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include <sys/socket.h>
-
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <lua.h>
-
 #include "stats.h"
 #include "ae.h"
 #include "http_parser.h"
 #include "hdr_histogram.h"
-#include "machnet.h"  // Include machnet.h
-#include "net.h"
+#include "machnet.h"  // Include Machnet
 
 #define VERSION  "4.0.0"
 #define RECVBUF  8192
@@ -98,6 +95,9 @@ typedef struct connection {
     MachnetFlow_t machnet_flow; // Added this for Machnet flow information
 
 } connection;
+
+// Include `net.h` after defining `connection`
+#include "net.h"
 
 // Added struct config below existing definitions
 typedef struct config {
