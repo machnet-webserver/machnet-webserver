@@ -278,6 +278,12 @@ int main(int argc, char **argv) {
 
     for (uint64_t i = 0; i < cfg.threads; i++) {
         thread *t = &threads[i];
+
+        // Ensure the thread has completed before accessing its data
+        pthread_join(t->thread, NULL);
+        printf("[DEBUG] Thread %lu completed: %lu requests, bytes=%lu.\n", 
+            i, t->complete, t->bytes);
+        
         complete += t->complete;
         bytes    += t->bytes;
 
@@ -292,8 +298,17 @@ int main(int argc, char **argv) {
     }
 
     long double runtime_s   = runtime_us / 1000000.0;
+    printf("[DEBUG] runtime_us=%lu\n", runtime_us);
+    printf("[DEBUG] runtime_s=%.6Lf seconds\n", runtime_s);
+
+    printf("[DEBUG] Calculating req_per_s: complete=%lu, runtime_s=%.6Lf\n", complete, runtime_s);
+
     long double req_per_s   = complete   / runtime_s;
     long double bytes_per_s = bytes      / runtime_s;
+
+    printf("[DEBUG] complete=%lu, bytes=%lu\n", complete, bytes);
+    printf("[DEBUG] req_per_s=%.6Lf, bytes_per_s=%.6Lf\n", req_per_s, bytes_per_s);
+
 
     stats *latency_stats = stats_alloc(10);
     latency_stats->min = hdr_min(latency_histogram);
@@ -362,6 +377,8 @@ void *thread_main(void *arg) {
 
     double throughput = (thread->throughput / 1000000.0) / thread->connections;
 
+    printf("[DEBUG] Thread throughput: %f, connections=%lu\n", throughput, thread->connections);
+
     connection *c = thread->cs;
 
     // Schedule initial connections
@@ -405,6 +422,8 @@ void *thread_main(void *arg) {
     // Clean up resources after the event loop ends
     aeDeleteEventLoop(loop);
     zfree(thread->cs);
+
+    printf("[DEBUG] Thread %p completed requests: %lu\n", thread, thread->complete);
 
     return NULL;
 }
@@ -671,6 +690,8 @@ static int response_complete(http_parser *parser) {
 
     thread->complete++;
     thread->requests++;
+
+    printf("[DEBUG] Response completed. Thread=%p, total_completed=%lu\n", thread, thread->complete);
 
     if (thread->complete >= cfg.connections) {
         printf("[DEBUG] All connections completed. Stopping the loop.\n");
