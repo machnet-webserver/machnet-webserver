@@ -340,6 +340,7 @@ int main(int argc, char **argv) {
 
 void *thread_main(void *arg) {
     thread *thread = arg;
+    aeEventLoop *loop = thread->loop;
 
     thread->cs = zcalloc(thread->connections * sizeof(connection));
     tinymt64_init(&thread->rand, time_us());
@@ -355,9 +356,13 @@ void *thread_main(void *arg) {
 
     double throughput = (thread->throughput / 1000000.0) / thread->connections;
 
-    // Initialize connections
     connection *c = thread->cs;
+
     for (uint64_t i = 0; i < thread->connections; i++, c++) {
+        if (i >= cfg.connections) {
+            printf("[DEBUG] Max connections reached: %lu\n", cfg.connections);
+            break;
+        }
         c->thread     = thread;
         c->ssl        = cfg.ctx ? SSL_new(cfg.ctx) : NULL;
         c->request    = request;
@@ -367,22 +372,29 @@ void *thread_main(void *arg) {
         c->complete   = 0;
         c->caught_up  = true;
 
-        connect_socket(thread, c);  // Directly establish the connection
+        aeCreateTimeEvent(loop, i * 5, delayed_initial_connect, c, NULL);
     }
 
-    uint64_t stop_at = thread->stop_at;
+    uint64_t calibrate_delay = CALIBRATE_DELAY_MS + (thread->connections * 5);
+    uint64_t timeout_delay = TIMEOUT_INTERVAL_MS + (thread->connections * 5);
 
-    // Main polling loop
-    while (!stop && time_us() < stop_at) {
-        poll_reads(thread);  // Handle reads for all connections
-        // Optionally, handle writes here if needed.
-        usleep(100);  // Prevent busy-waiting
+    aeCreateTimeEvent(loop, calibrate_delay, calibrate, thread, NULL);
+    aeCreateTimeEvent(loop, timeout_delay, check_timeouts, thread, NULL);
+
+    // Check if the total completed connections across all threads matches the configured limit
+    if (thread->complete >= cfg.connections) {
+        printf("[DEBUG] Exiting event loop after reaching maximum connections (%lu).\n", cfg.connections);
+        aeStop(loop); // Stop the event loop
     }
 
+    thread->start = time_us();
+    aeMain(loop);
+
+    aeDeleteEventLoop(loop);
     zfree(thread->cs);
+
     return NULL;
 }
-
 
 
 
@@ -945,42 +957,5 @@ static void print_stats_latency(stats *stats) {
         printf("%7.3Lf%%", p);
         print_units(n, format_time_us, 10);
         printf("\n");
-    }
-}
-
-void poll_reads(thread *thread) {
-    connection *c = thread->cs;  // All connections for the thread
-
-    for (uint64_t i = 0; i < thread->connections; i++, c++) {
-        size_t rx_size;
-        MachnetFlow_t rx_flow;
-
-        // Receive data from Machnet
-        rx_size = machnet_recv(c->channel_ctx, c->buf, sizeof(c->buf), &rx_flow);
-
-        if (rx_size > 0) {
-            c->latest_read = time_us();  // Update last read time
-            printf("[DEBUG] Received %zu bytes from Machnet (poll_reads).\n", rx_size);
-
-            // Process the received data (e.g., HTTP parsing)
-            if (http_parser_execute(&c->parser, &parser_settings, c->buf, rx_size) != rx_size) {
-                fprintf(stderr, "[ERROR] HTTP parse error in poll_reads.\n");
-                reconnect_socket(thread, c); // Handle reconnect
-            }
-        } else if (rx_size == 0) {
-            // No data available
-            continue;
-        } else {
-            // Handle receive errors
-            fprintf(stderr, "[ERROR] machnet_recv failed in poll_reads.\n");
-            reconnect_socket(thread, c);
-        }
-
-        // Timeout logic
-        uint64_t now = time_us();
-        if (now - c->latest_read > cfg.timeout * 1000) {
-            fprintf(stderr, "[ERROR] Connection timeout in poll_reads.\n");
-            reconnect_socket(thread, c);
-        }
     }
 }
