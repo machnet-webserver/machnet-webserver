@@ -115,4 +115,7 @@ typedef struct config {
 // make cfg accessible globally??
 extern config cfg;
 
+// Declare poll_reads function
+void poll_reads(thread *thread);
+
 #endif /* WRK_H */

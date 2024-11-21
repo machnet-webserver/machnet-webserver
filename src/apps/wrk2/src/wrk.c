@@ -340,7 +340,6 @@ int main(int argc, char **argv) {
 
 void *thread_main(void *arg) {
     thread *thread = arg;
-    aeEventLoop *loop = thread->loop;
 
     thread->cs = zcalloc(thread->connections * sizeof(connection));
     tinymt64_init(&thread->rand, time_us());
@@ -356,13 +355,9 @@ void *thread_main(void *arg) {
 
     double throughput = (thread->throughput / 1000000.0) / thread->connections;
 
+    // Initialize connections
     connection *c = thread->cs;
-
     for (uint64_t i = 0; i < thread->connections; i++, c++) {
-        if (i >= cfg.connections) {
-            printf("[DEBUG] Max connections reached: %lu\n", cfg.connections);
-            break;
-        }
         c->thread     = thread;
         c->ssl        = cfg.ctx ? SSL_new(cfg.ctx) : NULL;
         c->request    = request;
@@ -372,29 +367,22 @@ void *thread_main(void *arg) {
         c->complete   = 0;
         c->caught_up  = true;
 
-        aeCreateTimeEvent(loop, i * 5, delayed_initial_connect, c, NULL);
+        connect_socket(thread, c);  // Directly establish the connection
     }
 
-    uint64_t calibrate_delay = CALIBRATE_DELAY_MS + (thread->connections * 5);
-    uint64_t timeout_delay = TIMEOUT_INTERVAL_MS + (thread->connections * 5);
+    uint64_t stop_at = thread->stop_at;
 
-    aeCreateTimeEvent(loop, calibrate_delay, calibrate, thread, NULL);
-    aeCreateTimeEvent(loop, timeout_delay, check_timeouts, thread, NULL);
-
-    // Check if the total completed connections across all threads matches the configured limit
-    if (thread->complete >= cfg.connections) {
-        printf("[DEBUG] Exiting event loop after reaching maximum connections (%lu).\n", cfg.connections);
-        aeStop(loop); // Stop the event loop
+    // Main polling loop
+    while (!stop && time_us() < stop_at) {
+        poll_reads(thread);  // Handle reads for all connections
+        // Optionally, handle writes here if needed.
+        usleep(100);  // Prevent busy-waiting
     }
 
-    thread->start = time_us();
-    aeMain(loop);
-
-    aeDeleteEventLoop(loop);
     zfree(thread->cs);
-
     return NULL;
 }
+
 
 
 
@@ -957,5 +945,42 @@ static void print_stats_latency(stats *stats) {
         printf("%7.3Lf%%", p);
         print_units(n, format_time_us, 10);
         printf("\n");
+    }
+}
+
+void poll_reads(thread *thread) {
+    connection *c = thread->cs;  // Get all connections for the thread.
+
+    for (uint64_t i = 0; i < thread->connections; i++, c++) {
+        size_t rx_size;
+        MachnetFlow_t rx_flow;
+
+        // Attempt to receive data
+        rx_size = machnet_recv(c->thread->channel_ctx, c->buf, RECVBUF, &rx_flow);
+
+        if (rx_size > 0) {
+            c->latest_read = time_us();  // Update last read time
+            c->thread->bytes += rx_size;
+
+            // Parse the received data
+            if (http_parser_execute(&c->parser, &parser_settings, c->buf, rx_size) != rx_size) {
+                fprintf(stderr, "HTTP parse error on connection %lu\n", i);
+                reconnect_socket(thread, c);  // Handle reconnect if necessary.
+            }
+        } else if (rx_size == 0) {
+            // No data available; continue to next connection.
+            continue;
+        } else {
+            // Error handling for machnet_recv
+            fprintf(stderr, "Receive error on connection %lu\n", i);
+            reconnect_socket(thread, c);
+        }
+
+        // Check for timeout
+        uint64_t now = time_us();
+        if (now - c->latest_read > cfg.timeout * 1000) {
+            fprintf(stderr, "Timeout on connection %lu\n", i);
+            reconnect_socket(thread, c);
+        }
     }
 }
