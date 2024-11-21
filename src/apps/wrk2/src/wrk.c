@@ -10,7 +10,6 @@
 #define MAX_LATENCY 24L * 60 * 60 * 1000000
 
 config cfg;
-char *local_ip = "10.10.1.1"; // Assign your local IP address
 
 // this is moved to wrk.h
 // static struct config {
@@ -36,8 +35,7 @@ static struct {
 } statistics;
 
 static struct sock sock = {
-    // .connect  = sock_connect,
-    .connect  = wrapper_sock_connect,
+    .connect  = sock_connect,
     .close    = sock_close,
     .read     = sock_read,
     .write    = sock_write,
@@ -341,103 +339,96 @@ int main(int argc, char **argv) {
 }
 
 void *thread_main(void *arg) {
-    thread *t = arg;
+    thread *thread = arg;
+    aeEventLoop *loop = thread->loop;
 
-    // Allocate connections
-    t->cs = zcalloc(t->connections * sizeof(connection));
-    if (!t->cs) {
-        fprintf(stderr, "[ERROR] Failed to allocate connections\n");
-        return NULL;
+    thread->cs = zcalloc(thread->connections * sizeof(connection));
+    tinymt64_init(&thread->rand, time_us());
+    hdr_init(1, MAX_LATENCY, 3, &thread->latency_histogram);
+    hdr_init(1, MAX_LATENCY, 3, &thread->u_latency_histogram);
+
+    char *request = NULL;
+    size_t length = 0;
+
+    if (!cfg.dynamic) {
+        script_request(thread->L, &request, &length);
     }
 
-    // Initialize connections
-    for (uint64_t i = 0; i < t->connections; i++) {
-        connection *c = &t->cs[i];
-        c->thread = t;
+    double throughput = (thread->throughput / 1000000.0) / thread->connections;
 
-        if (connect_socket(t, c) < 0) {
-            t->errors.connect++;
-            continue;
+    connection *c = thread->cs;
+
+    for (uint64_t i = 0; i < thread->connections; i++, c++) {
+        if (i >= cfg.connections) {
+            printf("[DEBUG] Max connections reached: %lu\n", cfg.connections);
+            break;
         }
+        c->thread     = thread;
+        c->ssl        = cfg.ctx ? SSL_new(cfg.ctx) : NULL;
+        c->request    = request;
+        c->length     = length;
+        c->throughput = throughput;
+        c->catch_up_throughput = throughput * 2;
+        c->complete   = 0;
+        c->caught_up  = true;
+
+        aeCreateTimeEvent(loop, i * 5, delayed_initial_connect, c, NULL);
     }
 
-    // Polling loop
-    uint64_t stop_at = time_us() + (cfg.duration * 1000000);
-    while (time_us() < stop_at && !stop) {
-        for (uint64_t i = 0; i < t->connections; i++) {
-            connection *c = &t->cs[i];
-            if (!c) continue;
+    uint64_t calibrate_delay = CALIBRATE_DELAY_MS + (thread->connections * 5);
+    uint64_t timeout_delay = TIMEOUT_INTERVAL_MS + (thread->connections * 5);
 
-            // Poll for readable state
-            if (machnet_poll(c->channel_ctx, c->machnet_flow, POLL_READABLE, TIMEOUT_MS) == POLL_READY) {
-                char buffer[RECVBUF];
-                ssize_t n = machnet_recv(c->channel_ctx, buffer, sizeof(buffer), NULL);
-                if (n > 0) {
-                    printf("[DEBUG] Received %zd bytes\n", n);
-                    c->thread->bytes += n;
-                    http_parser_execute(&c->parser, &parser_settings, buffer, n);
-                } else if (n < 0) {
-                    fprintf(stderr, "[ERROR] Failed to receive data\n");
-                    t->errors.read++;
-                }
-            }
+    aeCreateTimeEvent(loop, calibrate_delay, calibrate, thread, NULL);
+    aeCreateTimeEvent(loop, timeout_delay, check_timeouts, thread, NULL);
 
-            // Poll for writable state
-            if (c->written < c->length && machnet_poll(c->channel_ctx, c->machnet_flow, POLL_WRITABLE, TIMEOUT_MS) == POLL_READY) {
-                ssize_t n = machnet_send(c->channel_ctx, c->machnet_flow, c->request + c->written, c->length - c->written);
-                if (n > 0) {
-                    c->written += n;
-                } else if (n < 0) {
-                    fprintf(stderr, "[ERROR] Failed to send data\n");
-                    t->errors.write++;
-                }
-            }
-        }
-
-        usleep(1000); // Small delay to prevent high CPU usage
+    // Check if the total completed connections across all threads matches the configured limit
+    if (thread->complete >= cfg.connections) {
+        printf("[DEBUG] Exiting event loop after reaching maximum connections (%lu).\n", cfg.connections);
+        aeStop(loop); // Stop the event loop
     }
 
-    zfree(t->cs);
+    thread->start = time_us();
+    aeMain(loop);
+
+    aeDeleteEventLoop(loop);
+    zfree(thread->cs);
+
     return NULL;
 }
 
 
 
-
 static int connect_socket(thread *thread, connection *c) {
     struct addrinfo *addr = thread->addr;
-    int fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+    struct aeEventLoop *loop = thread->loop;
+    int fd, flags;
 
-    if (fd < 0) return -1;
+    fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
 
-    int flags = fcntl(fd, F_GETFL, 0);
+    flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
-    if (connect(fd, addr->ai_addr, addr->ai_addrlen) == -1 && errno != EINPROGRESS) {
-        close(fd);
-        return -1;
+    if (connect(fd, addr->ai_addr, addr->ai_addrlen) == -1) {
+        if (errno != EINPROGRESS) goto error;
     }
 
-    c->fd = fd;
-    c->thread = thread;
+    flags = 1;
+    setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flags, sizeof(flags));
 
-    // Poll for readiness instead of creating file events
-    while (1) {
-        int status = machnet_poll(c->channel_ctx, c->machnet_flow, POLL_WRITABLE, TIMEOUT_MS);
-        if (status == POLL_READY) {
-            break;
-        } else if (status == POLL_ERROR) {
-            fprintf(stderr, "[ERROR] Connection failed during poll\n");
-            close(fd);
-            return -1;
-        }
-        usleep(1000); // Small delay to avoid busy-waiting
+    c->latest_connect = time_us();
+
+    flags = AE_READABLE | AE_WRITABLE;
+    if (aeCreateFileEvent(loop, fd, flags, socket_connected, c) == AE_OK) {
+        c->parser.data = c;
+        c->fd = fd;
+        return fd;
     }
 
-    printf("[DEBUG] Connected successfully using polling (fd: %d)\n", fd);
-    return fd;
+  error:
+    thread->errors.connect++;
+    close(fd);
+    return -1;
 }
-
 
 static int reconnect_socket(thread *thread, connection *c) {
     aeDeleteFileEvent(thread->loop, c->fd, AE_WRITABLE | AE_READABLE);
@@ -695,14 +686,6 @@ static int response_complete(http_parser *parser) {
     return 0;
 }
 
-// Wrapper function to adapt sock.connect to the new sock_connect signature
-status wrapper_sock_connect(connection *c, char *remote_ip) {
-    extern char *local_ip; // Use global `local_ip` (e.g., 10.10.1.1)
-    uint16_t remote_port = 8000; // The target port
-    return sock_connect(c, local_ip, remote_ip, remote_port);
-}
-
-
 static void socket_connected(aeEventLoop *loop, int fd, void *data, int mask) {
     connection *c = data;
 
@@ -796,10 +779,6 @@ static void socket_readable(aeEventLoop *loop, int fd, void *data, int mask) {
 
         if (http_parser_execute(&c->parser, &parser_settings, c->buf, n) != n) goto error;
         c->thread->bytes += n;
-
-        // Debug print to check if `sock.readable` is called
-        printf("[DEBUG] Checking if socket is readable for fd %d\n", fd);
-
     } while (n == RECVBUF && sock.readable(c) > 0);
     // } while (n == RECVBUF && machnet_readable(c) > 0);  // Change `sock.readable` to `machnet_readable`
 
