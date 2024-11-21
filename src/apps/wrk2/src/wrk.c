@@ -403,6 +403,11 @@ void *thread_main(void *arg) {
 }
 
 int poll_connections_callback(aeEventLoop *loop, long long id, void *arg) {
+    if (!arg) {
+        fprintf(stderr, "[ERROR] Null argument in poll_connections_callback.\n");
+        return AE_NOMORE;
+    }
+
     thread *thread = (thread *)arg;
 
     // Poll all connections
@@ -411,6 +416,7 @@ int poll_connections_callback(aeEventLoop *loop, long long id, void *arg) {
     // Reschedule this callback for periodic polling
     return 1;  // Return the interval (in milliseconds) for the next call
 }
+
 
 
 // void *thread_main(void *arg) {
