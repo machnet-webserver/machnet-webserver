@@ -30,9 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "wrk.h" 
-#include "ae.h"
-
 #include <stdio.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -43,11 +40,9 @@
 #include <time.h>
 #include <errno.h>
 
+#include "ae.h"
 #include "zmalloc.h"
 #include "config.h"
-
-#include "net.h"
-
 
 /* Include the best multiplexing layer supported by this system.
  * The following should be ordered by performances, descending. */
@@ -80,9 +75,6 @@ aeEventLoop *aeCreateEventLoop(int setsize) {
     eventLoop->stop = 0;
     eventLoop->maxfd = -1;
     eventLoop->beforesleep = NULL;
-
-    eventLoop->cs = NULL; // Initialize the connection list as empty
-
     if (aeApiCreate(eventLoop) == -1) goto err;
     /* Events with mask == AE_NONE are not set. So let's initialize the
      * vector with it. */
@@ -327,34 +319,9 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
  * the events that's possible to process without to wait are processed.
  *
  * The function returns the number of events processed. */
-int aeProcessEvents(aeEventLoop *eventLoop, thread *thread, int flags) {
+int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 {
-    printf("[DEBUG] Entered aeProcessEvents\n");
-
     int processed = 0, numevents;
-
-    if (!thread || !thread->cs) {
-        fprintf(stderr, "[ERROR] Connection list (thread->cs) is NULL in aeProcessEvents.\n");
-        return 0; // Prevent infinite loop
-    }
-
-    connection *c = thread->cs;
-
-    for (uint64_t i = 0; i < cfg.connections; i++, c++) {
-        size_t n;
-
-        // Debugging for each connection
-        printf("[DEBUG] Processing connection %lu (fd: %d)\n", i, c->fd);
-
-        if (sock_read(c, &n) == OK) {
-            printf("[DEBUG] Read %zu bytes from connection %d\n", n, c->fd);
-            // Process data if needed
-        } else if (sock_read(c, &n) == RETRY) {
-            printf("[DEBUG] No data available for connection %d\n", c->fd);
-        } else {
-            fprintf(stderr, "[ERROR] Read failed for connection %d\n", c->fd);
-        }
-    }
 
     /* Nothing to do? return ASAP */
     if (!(flags & AE_TIME_EVENTS) && !(flags & AE_FILE_EVENTS)) return 0;
@@ -450,12 +417,12 @@ int aeWait(int fd, int mask, long long milliseconds) {
     }
 }
 
-void aeMain(aeEventLoop *eventLoop, thread *thread) {
+void aeMain(aeEventLoop *eventLoop) {
     eventLoop->stop = 0;
     while (!eventLoop->stop) {
         if (eventLoop->beforesleep != NULL)
             eventLoop->beforesleep(eventLoop);
-        aeProcessEvents(eventLoop,thread, AE_ALL_EVENTS);
+        aeProcessEvents(eventLoop, AE_ALL_EVENTS);
     }
 }
 

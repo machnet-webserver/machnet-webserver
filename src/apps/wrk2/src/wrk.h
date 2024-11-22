@@ -12,6 +12,7 @@
 #include <openssl/err.h>
 #include <lua.h>
 #include "stats.h"
+#include "ae.h"
 #include "http_parser.h"
 #include "hdr_histogram.h"
 #include "machnet.h"  // Include Machnet
@@ -25,10 +26,6 @@
 #define TIMEOUT_INTERVAL_MS 2000
 
 extern char *local_ip; // Declare global local_ip in net.h
-
-// Forward declarations
-struct connection;
-typedef struct aeEventLoop aeEventLoop;
 
 // typedef enum {
 //     OK,
@@ -98,8 +95,6 @@ typedef struct connection {
 
     void *channel_ctx;  // Added this for Machnet context
     MachnetFlow_t machnet_flow; // Added this for Machnet flow information
-
-    struct connection *next; // Add this for linked list traversal
 
 } connection;
 

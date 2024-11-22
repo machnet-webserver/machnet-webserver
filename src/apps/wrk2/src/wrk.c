@@ -1,6 +1,5 @@
 // Copyright (C) 2012 - Will Glozer.  All rights reserved.
 
-#include "ae.h"
 #include "wrk.h"
 #include "script.h"
 #include "main.h"
@@ -9,8 +8,6 @@
 #include "net.h" 
 #include <unistd.h>
 #include <inttypes.h> 
-
-
 
 
 // Max recordable latency of 1 day
@@ -411,7 +408,7 @@ void *thread_main(void *arg) {
 
     // Start the event loop
     thread->start = time_us();
-    aeMain(loop, thread);  // Pass the thread to aeMain
+    aeMain(loop);
 
     // After the event loop has started and connections are initialized, poll if required
     c = thread->cs;
