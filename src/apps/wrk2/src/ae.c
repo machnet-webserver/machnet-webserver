@@ -331,7 +331,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 
     int processed = 0, numevents;
 
-    connection *c = eventLoop->cs; // Access the connection list from the eventLoop
+    connection *c = eventLoop->cs; // Start with the head of the connection list
     for (uint64_t i = 0; i < eventLoop->connections; i++, c++) {
         size_t n;
 
@@ -343,7 +343,6 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
             // Process data if needed
         } else if (sock_read(c, &n) == RETRY) {
             printf("[DEBUG] No data available for connection %d\n", c->fd);
-            // No data available, continue to the next connection
         } else {
             fprintf(stderr, "[ERROR] Read failed for connection %d\n", c->fd);
         }

@@ -98,6 +98,8 @@ typedef struct aeEventLoop {
     int stop;
     void *apidata; /* This is used for polling API specific data */
     aeBeforeSleepProc *beforesleep;
+    
+    uint64_t connections; /* Number of connections in the list */
     struct connection *cs; /* Pointer to the head of the connection list */
 
 } aeEventLoop;
