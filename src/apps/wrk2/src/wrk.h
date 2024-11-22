@@ -1,3 +1,5 @@
+#include "ae.h"
+
 #ifndef WRK_H
 #define WRK_H
 
@@ -12,7 +14,6 @@
 #include <openssl/err.h>
 #include <lua.h>
 #include "stats.h"
-#include "ae.h"
 #include "http_parser.h"
 #include "hdr_histogram.h"
 #include "machnet.h"  // Include Machnet
