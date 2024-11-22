@@ -43,7 +43,26 @@ struct thread;  // Forward declaration of thread
 #pragma message("Including wrk.h")
 #include "wrk.h"
 
-
+typedef struct {
+    pthread_t thread;
+    aeEventLoop *loop;
+    struct addrinfo *addr;
+    uint64_t connections;
+    int interval;
+    uint64_t stop_at;
+    uint64_t complete;
+    uint64_t requests;
+    uint64_t bytes;
+    uint64_t start;
+    double throughput;
+    uint64_t mean;
+    struct hdr_histogram *latency_histogram;
+    struct hdr_histogram *u_latency_histogram;
+    tinymt64_t rand;
+    lua_State *L;
+    errors errors;
+    struct connection *cs;
+} thread;
 
 /* Forward declaration to avoid including wrk.h directly */
 struct connection;
