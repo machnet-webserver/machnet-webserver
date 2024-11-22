@@ -33,6 +33,9 @@
 #ifndef __AE_H__
 #define __AE_H__
 
+/* Forward declaration of struct thread */
+struct thread;
+
 #include "wrk.h"
 
 /* Forward declaration to avoid including wrk.h directly */
@@ -57,8 +60,7 @@ struct connection;
 #include <stdint.h>
 
 
-/* Forward declaration of struct thread */
-struct thread;
+
 
 /* Function Prototypes */
 typedef struct aeEventLoop aeEventLoop;
