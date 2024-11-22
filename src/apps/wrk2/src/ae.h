@@ -36,9 +36,6 @@
 
 #include "wrk.h"
 
-/* Forward declaration to avoid including wrk.h directly */
-struct connection;
-
 #define AE_OK 0
 #define AE_ERR -1
 
