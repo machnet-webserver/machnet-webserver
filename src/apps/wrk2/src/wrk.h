@@ -27,6 +27,10 @@
 
 extern char *local_ip; // Declare global local_ip in net.h
 
+// Forward declarations
+struct connection;
+typedef struct aeEventLoop aeEventLoop;
+
 // typedef enum {
 //     OK,
 //     ERROR,
