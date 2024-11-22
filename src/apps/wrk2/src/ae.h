@@ -63,8 +63,6 @@ struct connection;
 /* Function Prototypes */
 typedef struct aeEventLoop aeEventLoop;
 
-struct aeEventLoop;
-
 /* Types and data structures */
 typedef void aeFileProc(struct aeEventLoop *eventLoop, int fd, void *clientData, int mask);
 typedef int aeTimeProc(struct aeEventLoop *eventLoop, long long id, void *clientData);
