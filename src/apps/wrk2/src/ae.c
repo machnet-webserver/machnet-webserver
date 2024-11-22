@@ -78,7 +78,7 @@ aeEventLoop *aeCreateEventLoop(int setsize) {
     eventLoop->stop = 0;
     eventLoop->maxfd = -1;
     eventLoop->beforesleep = NULL;
-    
+
     eventLoop->cs = NULL; // Initialize the connection list as empty
 
     if (aeApiCreate(eventLoop) == -1) goto err;
@@ -327,6 +327,8 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
  * The function returns the number of events processed. */
 int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 {
+    printf("[DEBUG] Entered aeProcessEvents\n");
+
     int processed = 0, numevents;
 
     /* Process connections before handling other events */
