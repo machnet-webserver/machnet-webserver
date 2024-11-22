@@ -96,6 +96,8 @@ typedef struct connection {
     void *channel_ctx;  // Added this for Machnet context
     MachnetFlow_t machnet_flow; // Added this for Machnet flow information
 
+    struct connection *next; // Add this for linked list traversal
+
 } connection;
 
 // Include `net.h` after defining `connection`
