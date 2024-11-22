@@ -339,7 +339,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, thread *thread, int flags) {
 
     connection *c = thread->cs;
 
-    for (uint64_t i = 0; i < thread->connections; i++, c++) {
+    for (uint64_t i = 0; i < cfg.connections; i++, c++) {
         size_t n;
 
         // Debugging for each connection
