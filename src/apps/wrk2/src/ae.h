@@ -52,6 +52,8 @@ struct connection;
 
 /* Macros */
 #define AE_NOTUSED(V) ((void) V)
+#include <stdint.h>
+
 
 struct aeEventLoop;
 
