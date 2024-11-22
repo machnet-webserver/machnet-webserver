@@ -325,25 +325,23 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
  * the events that's possible to process without to wait are processed.
  *
  * The function returns the number of events processed. */
-int aeProcessEvents(aeEventLoop *eventLoop, int flags)
+int aeProcessEvents(aeEventLoop *eventLoop, thread *thread, int flags) {
 {
     printf("[DEBUG] Entered aeProcessEvents\n");
 
     int processed = 0, numevents;
 
-    // Use cfg.connections for total connections
-    uint64_t total_connections = cfg.connections;
-
-    connection *c = eventLoop->cs;  // Start with the head of the connection list
-    if (!c) {
-        fprintf(stderr, "[ERROR] Connection list (eventLoop->cs) is NULL.\n");
-        return 0;
+    if (!thread || !thread->cs) {
+        fprintf(stderr, "[ERROR] Connection list (thread->cs) is NULL in aeProcessEvents.\n");
+        return 0; // Prevent infinite loop
     }
 
-    // Loop through all connections based on cfg.connections
-    for (uint64_t i = 0; i < total_connections; i++, c++) {
+    connection *c = thread->cs;
+
+    for (uint64_t i = 0; i < thread->connections; i++, c++) {
         size_t n;
 
+        // Debugging for each connection
         printf("[DEBUG] Processing connection %lu (fd: %d)\n", i, c->fd);
 
         if (sock_read(c, &n) == OK) {
@@ -450,12 +448,12 @@ int aeWait(int fd, int mask, long long milliseconds) {
     }
 }
 
-void aeMain(aeEventLoop *eventLoop) {
+void aeMain(aeEventLoop *eventLoop, thread *thread) {
     eventLoop->stop = 0;
     while (!eventLoop->stop) {
         if (eventLoop->beforesleep != NULL)
             eventLoop->beforesleep(eventLoop);
-        aeProcessEvents(eventLoop, AE_ALL_EVENTS);
+        aeProcessEvents(eventLoop,thread, AE_ALL_EVENTS);
     }
 }
 
