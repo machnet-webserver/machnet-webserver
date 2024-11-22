@@ -54,6 +54,8 @@ struct connection;
 #define AE_NOTUSED(V) ((void) V)
 #include <stdint.h>
 
+#include "wrk.h"
+
 
 struct aeEventLoop;
 
@@ -122,7 +124,8 @@ int aeDeleteTimeEvent(aeEventLoop *eventLoop, long long id);
 int aeProcessEvents(aeEventLoop *eventLoop, thread *thread, int flags);
 int aeWait(int fd, int mask, long long milliseconds);
 // void aeMain(aeEventLoop *eventLoop);
-void aeMain(aeEventLoop *eventLoop, thread *thread)
+void aeMain(aeEventLoop *eventLoop, struct thread *thread);
+
 char *aeGetApiName(void);
 void aeSetBeforeSleepProc(aeEventLoop *eventLoop, aeBeforeSleepProc *beforesleep);
 

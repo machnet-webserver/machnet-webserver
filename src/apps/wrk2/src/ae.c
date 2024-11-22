@@ -45,6 +45,7 @@
 #include "config.h"
 
 #include "net.h"
+#include "wrk.h"
 
 
 /* Include the best multiplexing layer supported by this system.
