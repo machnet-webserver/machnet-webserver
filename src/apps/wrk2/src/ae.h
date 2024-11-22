@@ -53,6 +53,9 @@
 #define AE_NOTUSED(V) ((void) V)
 #include <stdint.h>
 #include <time.h>      // For time_t
+#include <pthread.h>   // For pthread_t
+#include "tinymt64.h"  // For tinymt64_t
+#include "errors.h"    // For errors
 
 /* Forward declarations for types */
 typedef struct lua_State lua_State;          // Forward declare lua_State
