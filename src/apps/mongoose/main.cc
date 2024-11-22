@@ -16,13 +16,13 @@ void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
     struct mg_http_message *hm = (struct mg_http_message *) ev_data;
     struct mg_http_serve_opts opts = { .root_dir = "./web_root/" };
 
-  
+/*  
     printf("\n===\nMsg: \n");
     for(size_t i = 0; i < hm->message.len; i++) {
       printf("%c", hm->message.buf[i]);  
     }
     printf("\n===\n");
-
+*/
   
     mg_http_serve_dir(c, hm, &opts);
   }
