@@ -33,8 +33,6 @@
 #ifndef __AE_H__
 #define __AE_H__
 
-/* Forward declaration of struct thread */
-struct thread;
 
 #include "wrk.h"
 
@@ -132,7 +130,7 @@ int aeDeleteTimeEvent(aeEventLoop *eventLoop, long long id);
 int aeProcessEvents(aeEventLoop *eventLoop, thread *thread, int flags);
 int aeWait(int fd, int mask, long long milliseconds);
 // void aeMain(aeEventLoop *eventLoop);
-void aeMain(aeEventLoop *eventLoop, struct thread *thread);
+void aeMain(aeEventLoop *eventLoop, thread *thread);
 
 char *aeGetApiName(void);
 void aeSetBeforeSleepProc(aeEventLoop *eventLoop, aeBeforeSleepProc *beforesleep);
