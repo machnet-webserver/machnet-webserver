@@ -326,7 +326,7 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
  * the events that's possible to process without to wait are processed.
  *
  * The function returns the number of events processed. */
-int aeProcessEvents(aeEventLoop *eventLoop, thread *thread, int flags) {
+int aeProcessEvents(aeEventLoop *eventLoop, pthread_t *thread, int flags) {
 {
     printf("[DEBUG] Entered aeProcessEvents\n");
 
@@ -449,7 +449,7 @@ int aeWait(int fd, int mask, long long milliseconds) {
     }
 }
 
-void aeMain(aeEventLoop *eventLoop, thread *thread) {
+void aeMain(aeEventLoop *eventLoop, pthread_t *thread) {
     eventLoop->stop = 0;
     while (!eventLoop->stop) {
         if (eventLoop->beforesleep != NULL)
