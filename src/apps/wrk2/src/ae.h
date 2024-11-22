@@ -33,6 +33,8 @@
 #ifndef __AE_H__
 #define __AE_H__
 
+#include "wrk.h"
+
 /* Forward declaration to avoid including wrk.h directly */
 struct connection;
 
@@ -54,7 +56,6 @@ struct connection;
 #define AE_NOTUSED(V) ((void) V)
 #include <stdint.h>
 
-#include "wrk.h"
 
 /* Forward declaration of struct thread */
 struct thread;
