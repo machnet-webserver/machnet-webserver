@@ -56,6 +56,11 @@ struct connection;
 
 #include "wrk.h"
 
+/* Forward declaration of struct thread */
+struct thread;
+
+/* Function Prototypes */
+typedef struct aeEventLoop aeEventLoop;
 
 struct aeEventLoop;
 
