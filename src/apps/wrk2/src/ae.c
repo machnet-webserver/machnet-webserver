@@ -331,21 +331,23 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 
     int processed = 0, numevents;
 
-    /* Process connections before handling other events */
-    connection *c = eventLoop->cs; // Start with the head of the connection list
-    while (c != NULL) {
+    connection *c = eventLoop->thread->cs; // Start with the array of connections
+    for (uint64_t i = 0; i < eventLoop->thread->connections; i++, c++) {
         size_t n;
+
+        // Debugging for each connection
+        printf("[DEBUG] Processing connection %lu (fd: %d)\n", i, c->fd);
+
         if (sock_read(c, &n) == OK) {
             printf("[DEBUG] Read %zu bytes from connection %d\n", n, c->fd);
             // Process data if needed
         } else if (sock_read(c, &n) == RETRY) {
+            printf("[DEBUG] No data available for connection %d\n", c->fd);
             // No data available, continue to the next connection
         } else {
             fprintf(stderr, "[ERROR] Read failed for connection %d\n", c->fd);
         }
-        c = c->next; // Move to the next connection in the list
     }
-
 
     /* Nothing to do? return ASAP */
     if (!(flags & AE_TIME_EVENTS) && !(flags & AE_FILE_EVENTS)) return 0;
