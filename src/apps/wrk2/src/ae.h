@@ -51,11 +51,11 @@
 
 /* Macros */
 #define AE_NOTUSED(V) ((void) V)
-#include <stdint.h>
-#include <time.h>      // For time_t
-#include <pthread.h>   // For pthread_t
-#include "tinymt64.h"  // For tinymt64_t
-#include "errors.h"    // For errors
+#include <stdint.h>     // For uint64_t
+#include <time.h>       // For time_t
+#include "tinymt64.h"   // For tinymt64_t
+#include "errors.h"     // For errors
+#include <pthread.h>    // For pthread_t (used by ae.h logic)
 
 /* Forward declarations for types */
 typedef struct lua_State lua_State;          // Forward declare lua_State
@@ -68,26 +68,8 @@ typedef struct connection connection;        // Forward declare connection
 /* Function Prototypes */
 typedef struct aeEventLoop aeEventLoop;
 
-typedef struct {
-    pthread_t thread;
-    aeEventLoop *loop;
-    struct addrinfo *addr;
-    uint64_t connections;
-    int interval;
-    uint64_t stop_at;
-    uint64_t complete;
-    uint64_t requests;
-    uint64_t bytes;
-    uint64_t start;
-    double throughput;
-    uint64_t mean;
-    struct hdr_histogram *latency_histogram;
-    struct hdr_histogram *u_latency_histogram;
-    tinymt64_t rand;
-    lua_State *L;
-    errors errors;
-    struct connection *cs;
-} thread;
+typedef struct thread thread;  // Forward declaration
+
 
 /* Types and data structures */
 typedef void aeFileProc(struct aeEventLoop *eventLoop, int fd, void *clientData, int mask);
