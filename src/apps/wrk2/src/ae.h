@@ -30,7 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma message("Including wrk.h")
 #include "wrk.h"
 
 #ifndef __AE_H__
