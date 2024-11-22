@@ -54,7 +54,6 @@
 #include <stdint.h>     // For uint64_t
 #include <time.h>       // For time_t
 #include "tinymt64.h"   // For tinymt64_t
-#include "errors.h"     // For errors
 #include <pthread.h>    // For pthread_t (used by ae.h logic)
 
 /* Forward declarations for types */
