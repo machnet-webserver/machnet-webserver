@@ -363,7 +363,7 @@ void *thread_main(void *arg) {
     aeEventLoop *loop = thread->loop;
 
     // Initialize thread resources
-    thread->cs = zcalloc(thread->connections * sizeof(connection));
+    thread->cs = zcalloc(thread->connections * sizeof(connection)); // Create list of connections
     tinymt64_init(&thread->rand, time_us());
     hdr_init(1, MAX_LATENCY, 3, &thread->latency_histogram);
     hdr_init(1, MAX_LATENCY, 3, &thread->u_latency_histogram);
@@ -792,7 +792,7 @@ static void socket_connected(aeEventLoop *loop, int fd, void *data, int mask) {
     http_parser_init(&c->parser, HTTP_RESPONSE);
     c->written = 0;
 
-    aeCreateFileEvent(c->thread->loop, fd, AE_READABLE, socket_readable, c);
+    // aeCreateFileEvent(c->thread->loop, fd, AE_READABLE, socket_readable, c);
 
     aeCreateFileEvent(c->thread->loop, fd, AE_WRITABLE, socket_writeable, c);
 

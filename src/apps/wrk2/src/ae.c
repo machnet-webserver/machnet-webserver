@@ -44,6 +44,9 @@
 #include "zmalloc.h"
 #include "config.h"
 
+#include "net.h"
+
+
 /* Include the best multiplexing layer supported by this system.
  * The following should be ordered by performances, descending. */
 #ifdef HAVE_EVPORT
@@ -322,6 +325,23 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
 int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 {
     int processed = 0, numevents;
+
+    /* Iterate through all connections in the cs list */
+    if (eventLoop->cs != NULL) {
+        connection *c = eventLoop->cs;
+        while (c != NULL) {
+            size_t n;
+            if (sock_read(c, &n) == OK) {
+                printf("[DEBUG] Read %zu bytes from connection %d\n", n, c->fd);
+                // Process data if needed
+            } else if (sock_read(c, &n) == RETRY) {
+                // No data available, continue to the next connection
+            } else {
+                fprintf(stderr, "[ERROR] Read failed for connection %d\n", c->fd);
+            }
+            c = c->next; // Move to the next connection
+        }
+    }
 
     /* Nothing to do? return ASAP */
     if (!(flags & AE_TIME_EVENTS) && !(flags & AE_FILE_EVENTS)) return 0;
