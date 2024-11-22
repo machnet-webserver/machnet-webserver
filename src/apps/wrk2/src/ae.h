@@ -52,22 +52,14 @@
 /* Macros */
 #define AE_NOTUSED(V) ((void) V)
 #include <stdint.h>     // For uint64_t
-#include <time.h>       // For time_t
-#include "tinymt64.h"   // For tinymt64_t
-#include <pthread.h>    // For pthread_t (used by ae.h logic)
 
-/* Forward declarations for types */
-typedef struct lua_State lua_State;          // Forward declare lua_State
-typedef struct hdr_histogram hdr_histogram;  // Forward declare hdr_histogram
-typedef struct connection connection;        // Forward declare connection
-
-
+#include "wrk.h"
 
 
 /* Function Prototypes */
 typedef struct aeEventLoop aeEventLoop;
 
-typedef struct thread thread;  // Forward declaration
+
 
 
 /* Types and data structures */
