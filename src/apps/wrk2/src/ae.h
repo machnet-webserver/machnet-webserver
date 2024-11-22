@@ -34,7 +34,8 @@
 #ifndef __AE_H__
 #define __AE_H__
 
-#include "wrk.h"
+/* Forward declaration of struct thread in ae.h */
+struct thread;
 
 /* Forward declaration to avoid including wrk.h directly */
 struct connection;
