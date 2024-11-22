@@ -56,10 +56,12 @@
 #include "wrk.h"
 
 
+// Forward declare types from wrk.h instead of including it
+typedef struct thread thread;
+typedef struct connection connection;
+
 /* Function Prototypes */
 typedef struct aeEventLoop aeEventLoop;
-
-
 
 
 /* Types and data structures */
