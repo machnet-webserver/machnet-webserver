@@ -411,7 +411,7 @@ void *thread_main(void *arg) {
 
     // Start the event loop
     thread->start = time_us();
-    aeMain(loop, thread->cs);  // Pass the connection list (thread->cs) to aeMain
+    aeMain(loop, thread);  // Pass the thread to aeMain
 
     // After the event loop has started and connections are initialized, poll if required
     c = thread->cs;

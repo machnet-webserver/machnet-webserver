@@ -326,18 +326,18 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
  * the events that's possible to process without to wait are processed.
  *
  * The function returns the number of events processed. */
-int aeProcessEvents(aeEventLoop *eventLoop, connection *cs, int flags) {
+int aeProcessEvents(aeEventLoop *eventLoop, thread *thread, int flags) {
 {
     printf("[DEBUG] Entered aeProcessEvents\n");
 
     int processed = 0, numevents;
 
-    if (!cs) {
-        fprintf(stderr, "[ERROR] Connection list (cs) is NULL in aeProcessEvents.\n");
+    if (!thread || !thread->cs) {
+        fprintf(stderr, "[ERROR] Connection list (thread->cs) is NULL in aeProcessEvents.\n");
         return 0; // Prevent infinite loop
     }
 
-    connection *c = cs;
+    connection *c = thread->cs;
 
     for (uint64_t i = 0; i < cfg.connections; i++, c++) {
         size_t n;
@@ -449,14 +449,12 @@ int aeWait(int fd, int mask, long long milliseconds) {
     }
 }
 
-void aeMain(aeEventLoop *eventLoop, connection *cs) {
+void aeMain(aeEventLoop *eventLoop, thread *thread) {
     eventLoop->stop = 0;
     while (!eventLoop->stop) {
         if (eventLoop->beforesleep != NULL)
             eventLoop->beforesleep(eventLoop);
-
-        // Pass `cs` (connections) directly instead of `thread`
-        aeProcessEvents(eventLoop, cs, AE_ALL_EVENTS);
+        aeProcessEvents(eventLoop,thread, AE_ALL_EVENTS);
     }
 }
 
