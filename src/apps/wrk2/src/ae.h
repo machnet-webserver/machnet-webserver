@@ -30,12 +30,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "wrk.h"
 
 #ifndef __AE_H__
 #define __AE_H__
 
-
+#include "wrk.h"
 
 /* Forward declaration to avoid including wrk.h directly */
 struct connection;
