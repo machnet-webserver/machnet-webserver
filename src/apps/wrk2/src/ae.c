@@ -331,8 +331,8 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 
     int processed = 0, numevents;
 
-    connection *c = eventLoop->thread->cs; // Start with the array of connections
-    for (uint64_t i = 0; i < eventLoop->thread->connections; i++, c++) {
+    connection *c = eventLoop->cs; // Access the connection list from the eventLoop
+    for (uint64_t i = 0; i < eventLoop->connections; i++, c++) {
         size_t n;
 
         // Debugging for each connection
