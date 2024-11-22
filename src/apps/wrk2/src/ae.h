@@ -34,11 +34,6 @@
 #ifndef __AE_H__
 #define __AE_H__
 
-/* Prevent circular includes or redefinition of thread */
-#ifndef __THREAD_DEFINED__
-#define __THREAD_DEFINED__
-struct thread;  // Forward declaration of thread
-#endif
 
 #pragma message("Including wrk.h")
 #include "wrk.h"
@@ -134,10 +129,11 @@ long long aeCreateTimeEvent(aeEventLoop *eventLoop, long long milliseconds,
         aeEventFinalizerProc *finalizerProc);
 int aeDeleteTimeEvent(aeEventLoop *eventLoop, long long id);
 // int aeProcessEvents(aeEventLoop *eventLoop, int flags);
-int aeProcessEvents(aeEventLoop *eventLoop, thread *thread, int flags);
+int aeProcessEvents(aeEventLoop *eventLoop, connection *cs, int flags);
+
 int aeWait(int fd, int mask, long long milliseconds);
 // void aeMain(aeEventLoop *eventLoop);
-void aeMain(aeEventLoop *eventLoop, thread *thread);
+void aeMain(aeEventLoop *eventLoop, connection *cs);
 
 char *aeGetApiName(void);
 void aeSetBeforeSleepProc(aeEventLoop *eventLoop, aeBeforeSleepProc *beforesleep);
