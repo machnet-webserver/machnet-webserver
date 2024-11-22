@@ -30,18 +30,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#pragma message("Including wrk.h")
+#include "wrk.h"
 
 #ifndef __AE_H__
 #define __AE_H__
 
-/* Prevent circular includes or redefinition of thread */
-#ifndef __THREAD_DEFINED__
-#define __THREAD_DEFINED__
-struct thread;  // Forward declaration of thread
-#endif
 
-#pragma message("Including wrk.h")
-#include "wrk.h"
 
 /* Forward declaration to avoid including wrk.h directly */
 struct connection;
