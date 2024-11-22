@@ -30,6 +30,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "ae.h"
+#include "wrk.h"  // Include wrk.h for the full definition of struct thread
 #include <stdio.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -40,12 +42,10 @@
 #include <time.h>
 #include <errno.h>
 
-#include "ae.h"
 #include "zmalloc.h"
 #include "config.h"
 
 #include "net.h"
-#include "wrk.h"
 
 
 /* Include the best multiplexing layer supported by this system.

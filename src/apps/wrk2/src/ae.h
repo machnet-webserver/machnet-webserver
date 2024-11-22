@@ -34,11 +34,6 @@
 #ifndef __AE_H__
 #define __AE_H__
 
-/* Forward declaration of struct thread in ae.h */
-struct thread;
-
-/* Forward declaration to avoid including wrk.h directly */
-struct connection;
 
 #define AE_OK 0
 #define AE_ERR -1
@@ -57,12 +52,39 @@ struct connection;
 /* Macros */
 #define AE_NOTUSED(V) ((void) V)
 #include <stdint.h>
+#include <time.h>      // For time_t
+
+/* Forward declarations for types */
+typedef struct lua_State lua_State;          // Forward declare lua_State
+typedef struct hdr_histogram hdr_histogram;  // Forward declare hdr_histogram
+typedef struct connection connection;        // Forward declare connection
 
 
 
 
 /* Function Prototypes */
 typedef struct aeEventLoop aeEventLoop;
+
+typedef struct {
+    pthread_t thread;
+    aeEventLoop *loop;
+    struct addrinfo *addr;
+    uint64_t connections;
+    int interval;
+    uint64_t stop_at;
+    uint64_t complete;
+    uint64_t requests;
+    uint64_t bytes;
+    uint64_t start;
+    double throughput;
+    uint64_t mean;
+    struct hdr_histogram *latency_histogram;
+    struct hdr_histogram *u_latency_histogram;
+    tinymt64_t rand;
+    lua_State *L;
+    errors errors;
+    struct connection *cs;
+} thread;
 
 /* Types and data structures */
 typedef void aeFileProc(struct aeEventLoop *eventLoop, int fd, void *clientData, int mask);
