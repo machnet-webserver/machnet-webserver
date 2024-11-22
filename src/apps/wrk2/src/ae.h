@@ -134,14 +134,10 @@ long long aeCreateTimeEvent(aeEventLoop *eventLoop, long long milliseconds,
         aeEventFinalizerProc *finalizerProc);
 int aeDeleteTimeEvent(aeEventLoop *eventLoop, long long id);
 // int aeProcessEvents(aeEventLoop *eventLoop, int flags);
-// int aeProcessEvents(aeEventLoop *eventLoop, thread *thread, int flags);
-int aeProcessEvents(aeEventLoop *eventLoop, pthread_t *thread, int flags);
-
+int aeProcessEvents(aeEventLoop *eventLoop, thread *thread, int flags);
 int aeWait(int fd, int mask, long long milliseconds);
 // void aeMain(aeEventLoop *eventLoop);
-// void aeMain(aeEventLoop *eventLoop, thread *thread);
-void aeMain(aeEventLoop *eventLoop, pthread_t *thread);
-
+void aeMain(aeEventLoop *eventLoop, thread *thread);
 
 char *aeGetApiName(void);
 void aeSetBeforeSleepProc(aeEventLoop *eventLoop, aeBeforeSleepProc *beforesleep);
