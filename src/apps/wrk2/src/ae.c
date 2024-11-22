@@ -78,6 +78,9 @@ aeEventLoop *aeCreateEventLoop(int setsize) {
     eventLoop->stop = 0;
     eventLoop->maxfd = -1;
     eventLoop->beforesleep = NULL;
+    
+    eventLoop->cs = NULL; // Initialize the connection list as empty
+
     if (aeApiCreate(eventLoop) == -1) goto err;
     /* Events with mask == AE_NONE are not set. So let's initialize the
      * vector with it. */
@@ -326,22 +329,21 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 {
     int processed = 0, numevents;
 
-    /* Iterate through all connections in the cs list */
-    if (eventLoop->cs != NULL) {
-        connection *c = eventLoop->cs;
-        while (c != NULL) {
-            size_t n;
-            if (sock_read(c, &n) == OK) {
-                printf("[DEBUG] Read %zu bytes from connection %d\n", n, c->fd);
-                // Process data if needed
-            } else if (sock_read(c, &n) == RETRY) {
-                // No data available, continue to the next connection
-            } else {
-                fprintf(stderr, "[ERROR] Read failed for connection %d\n", c->fd);
-            }
-            c = c->next; // Move to the next connection
+    /* Process connections before handling other events */
+    connection *c = eventLoop->cs; // Start with the head of the connection list
+    while (c != NULL) {
+        size_t n;
+        if (sock_read(c, &n) == OK) {
+            printf("[DEBUG] Read %zu bytes from connection %d\n", n, c->fd);
+            // Process data if needed
+        } else if (sock_read(c, &n) == RETRY) {
+            // No data available, continue to the next connection
+        } else {
+            fprintf(stderr, "[ERROR] Read failed for connection %d\n", c->fd);
         }
+        c = c->next; // Move to the next connection in the list
     }
+
 
     /* Nothing to do? return ASAP */
     if (!(flags & AE_TIME_EVENTS) && !(flags & AE_FILE_EVENTS)) return 0;

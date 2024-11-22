@@ -33,6 +33,9 @@
 #ifndef __AE_H__
 #define __AE_H__
 
+/* Forward declaration to avoid including wrk.h directly */
+struct connection;
+
 #define AE_OK 0
 #define AE_ERR -1
 
@@ -95,6 +98,8 @@ typedef struct aeEventLoop {
     int stop;
     void *apidata; /* This is used for polling API specific data */
     aeBeforeSleepProc *beforesleep;
+    struct connection *cs; /* Pointer to the head of the connection list */
+
 } aeEventLoop;
 
 /* Prototypes */
