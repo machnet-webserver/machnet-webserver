@@ -411,13 +411,13 @@ void *thread_main(void *arg) {
     aeMain(loop);
 
     // After the event loop has started and connections are initialized, poll if required
-    c = thread->cs;
-    for (uint64_t i = 0; i < thread->connections; i++, c++) {
-        if (c->complete == 0) {  // Check connections that haven't completed
-            printf("[DEBUG] Polling connection %lu after sending a message.\n", i);
-            poll_machnet_connections(thread);
-        }
-    }
+    // c = thread->cs;
+    // for (uint64_t i = 0; i < thread->connections; i++, c++) {
+    //     if (c->complete == 0) {  // Check connections that haven't completed
+    //         printf("[DEBUG] Polling connection %lu after sending a message.\n", i);
+    //         poll_machnet_connections(thread);
+    //     }
+    // }
 
     // Clean up resources after the event loop ends
     aeDeleteEventLoop(loop);
