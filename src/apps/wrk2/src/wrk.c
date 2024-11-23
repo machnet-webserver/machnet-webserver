@@ -892,9 +892,8 @@ static void socket_readable(aeEventLoop *loop, int fd, void *data, int mask) {
         size_t n;
 
         do {
-            switch (sock_read(c, &n)) { // Use `sock_read` for data polling
+            switch (sock_read(c, &n)) { 
                 case OK:
-                    // Process received data (e.g., HTTP parsing)
                     if (http_parser_execute(&c->parser, &parser_settings, c->buf, n) != n) {
                         fprintf(stderr, "[ERROR] HTTP parse error in socket_readable.\n");
                         reconnect_socket(t, c); // Handle reconnect
