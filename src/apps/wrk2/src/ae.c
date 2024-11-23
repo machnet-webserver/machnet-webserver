@@ -422,8 +422,11 @@ void aeMain(aeEventLoop *eventLoop) {
     while (!eventLoop->stop) {
         if (eventLoop->beforesleep != NULL)
             eventLoop->beforesleep(eventLoop);
+#ifdef MACHNET 
+        aeProcessEvents(eventLoop, AE_ALL_EVENTS | AE_DONT_WAIT);
+#else
         aeProcessEvents(eventLoop, AE_ALL_EVENTS);
-
+#endif
         // Pass AE_DONT_WAIT if the flags indicate non-blocking behavior
         // if (flags & AE_DONT_WAIT) {
         //     aeProcessEvents(eventLoop, AE_ALL_EVENTS | AE_DONT_WAIT);

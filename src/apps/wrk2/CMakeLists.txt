@@ -15,6 +15,9 @@ set(BUILD_TESTING OFF) # Disable testing for third-party modules
 set(CMAKE_C_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 
+# Add defines
+add_definitions( -DMACHNET )
+
 # Unique binary directory variables
 set(WRK2_BINARY_DIR "${CMAKE_BINARY_DIR}/src/apps/wrk2_build")
 
