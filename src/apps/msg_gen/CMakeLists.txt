@@ -5,12 +5,12 @@ add_executable(${target_name} main.cc)
 
 # Add the hdr_histogram source file directly
 target_sources(${target_name} PRIVATE
-    /users/timmah/machnet-webserver/third_party/HdrHistogram_c/src/hdr_histogram.c
+    ../../../third_party/HdrHistogram_c/src/hdr_histogram.c
 )
 
 # Add the include directory for hdr_histogram.h
 target_include_directories(${target_name} PRIVATE
-    /users/timmah/machnet-webserver/third_party/HdrHistogram_c/include
+    ../../../third_party/HdrHistogram_c/include
 )
 
 # Link libraries
