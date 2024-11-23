@@ -794,6 +794,7 @@ static void socket_connected(aeEventLoop *loop, int fd, void *data, int mask) {
 
     // aeCreateFileEvent(c->thread->loop, fd, AE_READABLE, socket_readable, c);
 
+    aeCreateFileEvent(c->thread->loop, fd, AE_READABLE, socket_readable, c);
     aeCreateFileEvent(c->thread->loop, fd, AE_WRITABLE, socket_writeable, c);
 
     return;
@@ -860,28 +861,76 @@ static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
 }
 
 
+// static void socket_readable(aeEventLoop *loop, int fd, void *data, int mask) {
+//     connection *c = data;
+//     size_t n;
+
+//     do {
+//         switch (sock.read(c, &n)) {
+//             case OK:    break;
+//             case ERROR: goto error;
+//             case RETRY: return;
+//         }
+
+//         if (http_parser_execute(&c->parser, &parser_settings, c->buf, n) != n) goto error;
+//         c->thread->bytes += n;
+//     } while (n == RECVBUF && sock.readable(c) > 0);
+//     // } while (n == RECVBUF && machnet_readable(c) > 0);  // Change `sock.readable` to `machnet_readable`
+
+//     return;
+
+//   error:
+//     c->thread->errors.read++;
+//     reconnect_socket(c->thread, c);
+// }
+
 static void socket_readable(aeEventLoop *loop, int fd, void *data, int mask) {
-    connection *c = data;
-    size_t n;
+    thread *t = data; // Use the thread data
+    connection *c = t->cs; // Start of connections for the thread
 
-    do {
-        switch (sock.read(c, &n)) {
-            case OK:    break;
-            case ERROR: goto error;
-            case RETRY: return;
-        }
+    for (uint64_t i = 0; i < t->connections; i++, c++) {
+        size_t n;
 
-        if (http_parser_execute(&c->parser, &parser_settings, c->buf, n) != n) goto error;
-        c->thread->bytes += n;
-    } while (n == RECVBUF && sock.readable(c) > 0);
-    // } while (n == RECVBUF && machnet_readable(c) > 0);  // Change `sock.readable` to `machnet_readable`
+        do {
+            switch (sock_read(c, &n)) { // Use `sock_read` for data polling
+                case OK:
+                    // Process received data (e.g., HTTP parsing)
+                    if (http_parser_execute(&c->parser, &parser_settings, c->buf, n) != n) {
+                        fprintf(stderr, "[ERROR] HTTP parse error in socket_readable.\n");
+                        reconnect_socket(t, c); // Handle reconnect
+                        goto next_connection; // Move to the next connection
+                    }
+                    t->bytes += n;
+                    break;
 
-    return;
+                case RETRY:
+                    // No data available, skip to the next connection
+                    goto next_connection;
 
-  error:
-    c->thread->errors.read++;
-    reconnect_socket(c->thread, c);
+                case ERROR:
+                default:
+                    // Handle errors and attempt reconnect
+                    fprintf(stderr, "[ERROR] sock_read failed in socket_readable.\n");
+                    reconnect_socket(t, c);
+                    goto next_connection;
+            }
+
+            // Optionally handle timeouts
+            uint64_t now = time_us();
+            if (now - c->latest_read > cfg.timeout * 1000) {
+                fprintf(stderr, "[ERROR] Connection timeout in socket_readable.\n");
+                reconnect_socket(t, c);
+                goto next_connection;
+            }
+
+        } while (n == RECVBUF && sock.readable(c) > 0); // Continue while buffer is full and socket is readable
+
+    next_connection: // Label to move to the next connection
+        continue;
+    }
 }
+
+
 
 static uint64_t time_us() {
     struct timeval t;
