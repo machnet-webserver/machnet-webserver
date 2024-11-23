@@ -115,4 +115,8 @@ void aeMain(aeEventLoop *eventLoop);
 char *aeGetApiName(void);
 void aeSetBeforeSleepProc(aeEventLoop *eventLoop, aeBeforeSleepProc *beforesleep);
 
+#ifdef MACHNET
+void aeReadFast(void *arg);
+#endif
+
 #endif

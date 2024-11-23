@@ -52,6 +52,9 @@ typedef struct {
     lua_State *L;
     errors errors;
     struct connection *cs;
+#ifdef MACHNET
+    void *channel_ctx;  // Added this for Machnet context
+#endif
 } thread;
 
 typedef struct {
@@ -93,8 +96,10 @@ typedef struct connection {
     uint64_t latest_write;
     uint64_t latest_read;  // Timestamp of the last read operation
 
-    void *channel_ctx;  // Added this for Machnet context
+#ifdef MACHNET
+    void *channel_ctx;  // loops back to thread connection ctx
     MachnetFlow_t machnet_flow; // Added this for Machnet flow information
+#endif
 
 } connection;
 

@@ -367,6 +367,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
             }
         }
 
+
         numevents = aeApiPoll(eventLoop, tvp);
         for (j = 0; j < numevents; j++) {
             aeFileEvent *fe = &eventLoop->events[eventLoop->fired[j].fd];
@@ -377,17 +378,22 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 	    /* note the fe->mask & mask & ... code: maybe an already processed
              * event removed an element that fired and we still didn't
              * processed, so we check if the event is still valid. */
+#ifndef MACHNET
             if (fe->mask & mask & AE_READABLE) {
                 rfired = 1;
                 fe->rfileProc(eventLoop,fd,fe->clientData,mask);
             }
+#endif
             if (fe->mask & mask & AE_WRITABLE) {
                 if (!rfired || fe->wfileProc != fe->rfileProc)
                     fe->wfileProc(eventLoop,fd,fe->clientData,mask);
             }
             processed++;
         }
+
     }
+
+
     /* Check time events */
     if (flags & AE_TIME_EVENTS)
         processed += processTimeEvents(eventLoop);
@@ -417,22 +423,34 @@ int aeWait(int fd, int mask, long long milliseconds) {
     }
 }
 
+#ifdef MACHNET
+void aeReadFast(void * arg) {
+    aeEventLoop *eventLoop = (aeEventLoop*) arg;
+    eventLoop->stop = 0;
+    while(!eventLoop->stop) {
+        for(int i = 0; i < eventLoop->setsize; i++) {
+            if(eventLoop && eventLoop->events) {
+                aeFileEvent *fe = &eventLoop->events[i];
+                if(fe && fe->rfileProc) {
+                    fe->rfileProc(eventLoop,0,fe->clientData, AE_READABLE);
+                }
+            }
+        }
+    }
+}
+#endif
+
 void aeMain(aeEventLoop *eventLoop) {
     eventLoop->stop = 0;
     while (!eventLoop->stop) {
         if (eventLoop->beforesleep != NULL)
             eventLoop->beforesleep(eventLoop);
 #ifdef MACHNET 
-        aeProcessEvents(eventLoop, AE_ALL_EVENTS | AE_DONT_WAIT);
+        aeProcessEvents(eventLoop, AE_ALL_EVENTS);// | AE_DONT_WAIT);
 #else
         aeProcessEvents(eventLoop, AE_ALL_EVENTS);
 #endif
-        // Pass AE_DONT_WAIT if the flags indicate non-blocking behavior
-        // if (flags & AE_DONT_WAIT) {
-        //     aeProcessEvents(eventLoop, AE_ALL_EVENTS | AE_DONT_WAIT);
-        // } else {
-        //     aeProcessEvents(eventLoop, AE_ALL_EVENTS);
-        // }
+
     }
 }
 

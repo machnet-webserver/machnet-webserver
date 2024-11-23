@@ -50,33 +50,36 @@ static const struct luaL_reg threadlib[] = {
 };
 
 lua_State *script_create(char *file, char *url, char **headers) {
-    // Initialize Machnet
-    printf("[DEBUG] Initializing Machnet...\n");
-    // if (machnet_init() != 0) {
-    //     fprintf(stderr, "[ERROR] Failed to initialize Machnet.\n");
-    //     exit(1); // Exit if Machnet initialization fails
-    // }
+#ifdef MACHNET
     static bool machnet_initialized = false;
-
     if (!machnet_initialized) {
+    #ifdef MACHNET_DEBUG
+        printf("[DEBUG] Initializing Machnet...\n");
+    #endif
         if (machnet_init() != 0) {
             fprintf(stderr, "[ERROR] Failed to initialize Machnet.\n");
             exit(1);
         }
+    #ifdef MACHNET_DEBUG
+        printf("[DEBUG] Machnet initialized successfully.\n");
+    #endif
         machnet_initialized = true;
     }
+#endif
 
-    printf("[DEBUG] Machnet initialized successfully.\n");
-
+#ifdef MACHNET_DEBUG
     // Create Lua state
     printf("[DEBUG] Creating Lua state.\n");
+#endif
     lua_State *L = luaL_newstate();
     if (!L) {
         fprintf(stderr, "[ERROR] Failed to create Lua state.\n");
         return NULL;
     }
     luaL_openlibs(L);
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] Lua state created and libraries opened.\n");
+#endif
 
     // Update Lua package.path to include the absolute path of wrk.lua
     char lua_path_cmd[512];
@@ -89,7 +92,10 @@ lua_State *script_create(char *file, char *url, char **headers) {
         lua_close(L);
         return NULL;
     }
+
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] Updated Lua package.path to include wrk.lua location.\n");
+#endif
 
     // Load the wrk module
     if (luaL_dostring(L, "wrk = require \"wrk\"")) {
@@ -98,7 +104,10 @@ lua_State *script_create(char *file, char *url, char **headers) {
         lua_close(L);
         return NULL;
     }
+
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] wrk module loaded.\n");
+#endif
 
     // Register metatables
     luaL_newmetatable(L, "wrk.addr");
@@ -107,7 +116,10 @@ lua_State *script_create(char *file, char *url, char **headers) {
     luaL_register(L, NULL, statslib);
     luaL_newmetatable(L, "wrk.thread");
     luaL_register(L, NULL, threadlib);
+
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] Lua metatables created and registered.\n");
+#endif
 
     // Parse the URL
     struct http_parser_url parts = {};
@@ -116,7 +128,9 @@ lua_State *script_create(char *file, char *url, char **headers) {
         lua_close(L);
         return NULL;
     }
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] URL parsed successfully: %s\n", url);
+#endif
 
     // Determine path
     char *path = "/";
@@ -139,13 +153,16 @@ lua_State *script_create(char *file, char *url, char **headers) {
         lua_close(L);
         return NULL;
     }
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] 'wrk' table retrieved from Lua state.\n");
-
+#endif
     set_field(L, 4, "scheme", push_url_part(L, url, &parts, UF_SCHEMA));
     set_field(L, 4, "host",   push_url_part(L, url, &parts, UF_HOST));
     set_field(L, 4, "port",   push_url_part(L, url, &parts, UF_PORT));
     set_fields(L, 4, fields);
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] Lua fields set (scheme, host, port, etc.).\n");
+#endif
 
     // Add headers to Lua
     lua_getfield(L, 4, "headers");
@@ -164,7 +181,10 @@ lua_State *script_create(char *file, char *url, char **headers) {
         }
     }
     lua_pop(L, 5);
+
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] HTTP headers added to Lua state.\n");
+#endif
 
     // Load Lua script file if provided
     if (file && luaL_dofile(L, file)) {
@@ -173,8 +193,9 @@ lua_State *script_create(char *file, char *url, char **headers) {
         lua_close(L);
         return NULL;
     }
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] Lua script file loaded: %s\n", file ? file : "(none)");
-
+#endif
     return L;
 }
 
@@ -541,7 +562,10 @@ static int script_wrk_lookup(lua_State *L) {
     return 1;
 }
 
+
 int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
+
+#if 0
     // Initialize a connection object
     connection c = {0};
 
@@ -560,9 +584,11 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
     }
 
     if (thread->complete >= cfg->connections) {
+#ifdef MACHNET_DEBUG
         printf("[DEBUG] Maximum connections reached. Not attempting new connection.\n");
+#endif
         lua_pushboolean(L, 0);
-        machnet_detach(c.channel_ctx); // Cleanup
+       // machnet_detach(c.channel_ctx); // Cleanup
         lua_pop(L, 3); // Cleanup Lua stack
         return 1;
     }
@@ -571,10 +597,11 @@ int script_wrk_connect(lua_State *L, thread *thread, struct config *cfg) {
         lua_pushboolean(L, 1);
     } else {
         lua_pushboolean(L, 0);
-        machnet_detach(c.channel_ctx); // Cleanup
+       // machnet_detach(c.channel_ctx); // Cleanup
     }
 
     lua_pop(L, 3); // Cleanup Lua stack
+#endif
     return 1;
 }
 

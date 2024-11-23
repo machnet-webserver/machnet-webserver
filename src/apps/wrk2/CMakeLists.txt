@@ -17,6 +17,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 
 # Add defines
 add_definitions( -DMACHNET )
+#add_definitions( -DMACHNET_DEBUG )
 
 # Unique binary directory variables
 set(WRK2_BINARY_DIR "${CMAKE_BINARY_DIR}/src/apps/wrk2_build")

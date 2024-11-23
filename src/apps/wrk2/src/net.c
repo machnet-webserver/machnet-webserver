@@ -32,13 +32,25 @@ char *local_ip;  // Declare `local_ip` as a global variable
 //     }
 // }
 
+#ifdef MACHNET
+status socket_attach(thread *t) {
+    // Attach a Machnet channel
+   // t->channel_ctx = machnet_attach();
+   // if (t->channel_ctx == 0) {
+    //    fprintf(stderr, "[ERROR] Failed to attach Machnet channel (net.c): %s\n", strerror(errno));
+    //    return ERROR;
+   // }
+    return OK;
+}
+#endif
+
 // Enhanced sock_connect with debug statements
 status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t remote_port) {
     MachnetFlow_t flow;
 
     // Always set local_ip to "10.10.1.1"
-    local_ip = "10.10.1.1";
-    remote_port = 8000;
+   //local_ip = "10.10.1.1";
+   // remote_port = 8000;
     
     // Validate remote_ip
     if (!remote_ip || strlen(remote_ip) == 0) {
@@ -46,31 +58,43 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
         return ERROR;
     }
 
+  //  if( c->thread && c->thread->channel_ctx) {
+   //     c->channel_ctx = c->thread->channel_ctx;
+   // } else {
+        if(c->channel_ctx == 0) {
+            c->channel_ctx = machnet_attach();
+            if(c->channel_ctx == 0) {
+                fprintf(stderr, "[ERROR] failed to attach to machnet.\n");
+            }
+        }
+    //} 
+
+
+#ifdef MACHNET_DEBUG
     // Debug remote_ip before further processing
     printf("[DEBUG] Entering sock_connect with local IP: %s, remote IP: %s, port: %u\n", local_ip, remote_ip, remote_port);
+#endif
 
-    // Attach a Machnet channel
-    c->channel_ctx = machnet_attach();
-    if (!c->channel_ctx) {
-        fprintf(stderr, "[ERROR] Failed to attach Machnet channel (net.c): %s\n", strerror(errno));
-        return ERROR;
-    }
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] Machnet channel attached successfully (net.c).\n");
 
     // Debug remote_ip and local_ip before machnet_connect
     printf("[DEBUG] Preparing to call machnet_connect with local_ip: %s, remote_ip: %s, port: %u\n",
            local_ip, remote_ip, remote_port);
+#endif
 
     // Call machnet_connect
     int connect_status = machnet_connect(c->channel_ctx, local_ip, remote_ip, remote_port, &flow);
 
     if (connect_status == 0) {
         c->machnet_flow = flow; // Store flow context
+#ifdef MACHNET_DEBUG
         printf("[DEBUG] Machnet connected successfully to %s:%u (net.c).\n", remote_ip, remote_port);
+#endif
         return OK;
     } else {
         fprintf(stderr, "[ERROR] Machnet connection failed to %s:%u: %s\n", remote_ip, remote_port, strerror(errno));
-        machnet_detach(c->channel_ctx); // Cleanup on failure
+       // machnet_detach(c->channel_ctx); // Cleanup on failure
         return ERROR;
     }
 }
@@ -90,8 +114,10 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
 
 status sock_close(connection *c) {
     if (c->channel_ctx) {
-        machnet_detach(c->channel_ctx);
+       // machnet_detach(c->channel_ctx);
+#ifdef MACHNET_DEBUG
         printf("[DEBUG] Machnet channel detached successfully (net.c).\n");
+#endif
     }
     return OK;
 }
@@ -126,7 +152,9 @@ status sock_read(connection *c, size_t *n) {
 
     if (bytes_received > 0) {
         *n = (size_t)bytes_received;
+#ifdef MACHNET_DEBUG
         printf("[DEBUG] Received %ld bytes (net.c).\n", bytes_received);
+#endif
         return OK;
     } else if (bytes_received == 0) {
         // printf("[DEBUG] No data available to read (net.c).\n");
@@ -168,7 +196,9 @@ status sock_write(connection *c, char *buf, size_t len, size_t *n) {
 
     if (result >= 0) {
         *n = len;
+#ifdef MACHNET_DEBUG
         printf("[DEBUG] Sent %zu bytes (net.c).\n", len);
+#endif
         return OK;
     } else {
         fprintf(stderr, "[ERROR] machnet_send failed: %s\n", strerror(errno));

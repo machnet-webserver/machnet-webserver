@@ -13,6 +13,11 @@
 // Max recordable latency of 1 day
 #define MAX_LATENCY 24L * 60 * 60 * 1000000
 
+#ifdef MACHNET
+#define LOCAL_IP "10.10.1.1"
+#define REMOTE_PORT 8000
+#endif
+
 config cfg;
 
 // this is moved to wrk.h
@@ -39,8 +44,12 @@ static struct {
 } statistics;
 
 static struct sock sock = {
-    // .connect  = sock_connect,
+#ifdef MACHNET
+    .attach   = socket_attach,
     .connect  = sock_connect_wrapper,  // Use the wrapper here
+#else
+    .connect  = sock_connect,
+#endif
     .close    = sock_close,
     .read     = sock_read,
     .write    = sock_write,
@@ -90,7 +99,6 @@ static void usage() {
 }
 
 int main(int argc, char **argv) {
-
     char *url, **headers = zmalloc(argc * sizeof(char *));
     struct http_parser_url parts = {};
 
@@ -161,7 +169,9 @@ int main(int argc, char **argv) {
     if (!lua_isstring(L, -1)) {
         fprintf(stderr, "[ERROR] Lua state corrupted: 'wrk.host' is missing or invalid.\n");
     } else {
+#ifdef MACHNET_DEBUG
         printf("[DEBUG] Final wrk.host after script resolution: %s\n", lua_tostring(L, -1));
+#endif
     }
     lua_pop(L, 1);
 
@@ -170,7 +180,9 @@ int main(int argc, char **argv) {
     if (!lua_isstring(L, -1)) {
         fprintf(stderr, "[ERROR] Lua state corrupted: 'wrk.port' is missing or invalid.\n");
     } else {
+#ifdef MACHNET_DEBUG
         printf("[DEBUG] Final wrk.port after script resolution: %s\n", lua_tostring(L, -1));
+#endif
     }
     lua_pop(L, 1);
 
@@ -188,6 +200,10 @@ int main(int argc, char **argv) {
         t->throughput = throughput;
         t->stop_at     = stop_at;
 
+#ifdef MACHNET
+        sock.attach(t);
+#endif
+
         t->L = script_create(cfg.script, url, headers);
         script_init(L, t, argc - optind, &argv[optind]);
 
@@ -195,13 +211,17 @@ int main(int argc, char **argv) {
         lua_getglobal(t->L, "wrk");
 
         lua_getfield(t->L, -1, "host");
+#ifdef MACHNET_DEBUG
         printf("[DEBUG] Thread %"PRIu64" wrk.host: %s\n", i,
             lua_isstring(t->L, -1) ? lua_tostring(t->L, -1) : "(null)");
+#endif
         lua_pop(t->L, 1);
 
         lua_getfield(t->L, -1, "port");
+#ifdef MACHNET_DEBUG
         printf("[DEBUG] Thread %"PRIu64" wrk.port: %s\n", i,
             lua_isstring(t->L, -1) ? lua_tostring(t->L, -1) : "(null)");
+#endif
         lua_pop(t->L, 1);
 
         lua_pop(t->L, 1);
@@ -241,14 +261,18 @@ int main(int argc, char **argv) {
 
     // Check `wrk.host`
     lua_getfield(L, -1, "host");
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] wrk.host during test: %s\n",
         lua_isstring(L, -1) ? lua_tostring(L, -1) : "(null)");
+#endif
     lua_pop(L, 1);
 
     // Check `wrk.port`
     lua_getfield(L, -1, "port");
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] wrk.port during test: %s\n",
         lua_isstring(L, -1) ? lua_tostring(L, -1) : "(null)");
+#endif
     lua_pop(L, 1);
 
     // Clean up Lua stack
@@ -268,7 +292,9 @@ int main(int argc, char **argv) {
         thread *t = &threads[i];
         pthread_join(t->thread, NULL);
         if (t->complete >= cfg.connections) {
+#ifdef MACHNET_DEBUG
             printf("[DEBUG] Main loop exiting after max connections.\n");
+#endif
             break;
         }
     }
@@ -281,8 +307,10 @@ int main(int argc, char **argv) {
 
         // Ensure the thread has completed before accessing its data
         pthread_join(t->thread, NULL);
+#ifdef MACHNET_DEBUG
         printf("[DEBUG] Thread %lu completed: %lu requests, bytes=%lu.\n", 
             i, t->complete, t->bytes);
+#endif
         
         complete += t->complete;
         bytes    += t->bytes;
@@ -298,17 +326,20 @@ int main(int argc, char **argv) {
     }
 
     long double runtime_s   = runtime_us / 1000000.0;
+
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] runtime_us=%lu\n", runtime_us);
     printf("[DEBUG] runtime_s=%.6Lf seconds\n", runtime_s);
-
     printf("[DEBUG] Calculating req_per_s: complete=%lu, runtime_s=%.6Lf\n", complete, runtime_s);
+#endif
 
     long double req_per_s   = complete   / runtime_s;
     long double bytes_per_s = bytes      / runtime_s;
 
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] complete=%lu, bytes=%lu\n", complete, bytes);
     printf("[DEBUG] req_per_s=%.6Lf, bytes_per_s=%.6Lf\n", req_per_s, bytes_per_s);
-
+#endif
 
     stats *latency_stats = stats_alloc(10);
     latency_stats->min = hdr_min(latency_histogram);
@@ -377,14 +408,18 @@ void *thread_main(void *arg) {
 
     double throughput = (thread->throughput / 1000000.0) / thread->connections;
 
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] Thread throughput: %f, connections=%lu\n", throughput, thread->connections);
+#endif
 
     connection *c = thread->cs;
 
     // Schedule initial connections
     for (uint64_t i = 0; i < thread->connections; i++, c++) {
         if (i >= cfg.connections) {
+#ifdef MACHNET_DEBUG
             printf("[DEBUG] Max connections reached: %lu\n", cfg.connections);
+#endif
             break;
         }
         c->thread     = thread;
@@ -406,9 +441,19 @@ void *thread_main(void *arg) {
     aeCreateTimeEvent(loop, calibrate_delay, calibrate, thread, NULL);
     aeCreateTimeEvent(loop, timeout_delay, check_timeouts, thread, NULL);
 
+
+
+#ifdef MACHNET
+    pthread_t read_thread;
+    if (pthread_create(&read_thread, NULL, &aeReadFast, (void*)thread->loop)) { 
+        printf("Failed to create read thread;");
+    }
+#endif
+
     // Start the event loop
     thread->start = time_us();
     aeMain(loop);
+
 
     // After the event loop has started and connections are initialized, poll if required
     // c = thread->cs;
@@ -423,8 +468,9 @@ void *thread_main(void *arg) {
     aeDeleteEventLoop(loop);
     zfree(thread->cs);
 
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] Thread %p completed requests: %lu\n", thread, thread->complete);
-
+#endif
     return NULL;
 }
 
@@ -488,7 +534,34 @@ void *thread_main(void *arg) {
 //     return NULL;
 // }
 
+#ifdef MACHNET
+static int machnet_fd_alias = 1;
+static pthread_mutex_t machnet_fd_mutex;
 
+static int connect_socket(thread *thread, connection *c) {
+    struct aeEventLoop *loop = thread->loop;
+    int fd;
+    int flags = 1;
+
+    pthread_mutex_lock(&machnet_fd_mutex);
+    fd = machnet_fd_alias;
+    machnet_fd_alias++;
+    pthread_mutex_unlock(&machnet_fd_mutex);
+
+    c->latest_connect = time_us();
+
+    flags = AE_READABLE | AE_WRITABLE;
+    if (aeCreateFileEvent(loop, fd, flags, socket_connected, c) == AE_OK) {
+        c->parser.data = c;
+        c->fd = fd;
+        return fd;
+    }
+
+  error:
+    thread->errors.connect++;
+    return -1;
+}
+#else
 static int connect_socket(thread *thread, connection *c) {
     struct addrinfo *addr = thread->addr;
     struct aeEventLoop *loop = thread->loop;
@@ -520,11 +593,19 @@ static int connect_socket(thread *thread, connection *c) {
     close(fd);
     return -1;
 }
+#endif
 
 static int reconnect_socket(thread *thread, connection *c) {
     aeDeleteFileEvent(thread->loop, c->fd, AE_WRITABLE | AE_READABLE);
+
+#ifdef MACHNET_DEBUG
+    printf("[DEBUG] Reconnecting socket...\n");
+#endif
+
     sock.close(c);
+#ifndef MACHNET
     close(c->fd);
+#endif
     return connect_socket(thread, c);
 }
 
@@ -566,12 +647,15 @@ static int check_timeouts(aeEventLoop *loop, long long id, void *data) {
     thread *thread = data;
     connection *c  = thread->cs;
 
+/*
     if (stop || thread->complete >= cfg.connections) {
+#ifdef MACHNET_DEBUG
         printf("[DEBUG] Stopping the loop after reaching max connections.\n");
+#endif
         aeStop(loop);
         return AE_NOMORE;
     }
-
+*/
     uint64_t now   = time_us();
 
     uint64_t maxAge = now - (cfg.timeout * 1000);
@@ -691,13 +775,19 @@ static int response_complete(http_parser *parser) {
     thread->complete++;
     thread->requests++;
 
+/*
+#ifdef MACHNET_DEBUG
     printf("[DEBUG] Response completed. Thread=%p, total_completed=%lu\n", thread, thread->complete);
+#endif
 
     if (thread->complete >= cfg.connections) {
+#ifdef MACHNET_DEBUG
         printf("[DEBUG] All connections completed. Stopping the loop.\n");
+#endif
         aeStop(thread->loop);
         return 0;
     }
+*/
 
     if (status > 399) {
         thread->errors.status++;
@@ -749,7 +839,7 @@ static int response_complete(http_parser *parser) {
 
         expected_latency_start = c->thread_start +
                 ((c->complete ) / c->throughput);
-        printf("  next expected_latency_start = %lld\n", expected_latency_start);
+        printf("  next expected_latency_start = %lu\n", expected_latency_start);
     }
 
     c->latest_should_send_time = 0;
@@ -792,9 +882,8 @@ static void socket_connected(aeEventLoop *loop, int fd, void *data, int mask) {
     http_parser_init(&c->parser, HTTP_RESPONSE);
     c->written = 0;
 
-    // aeCreateFileEvent(c->thread->loop, fd, AE_READABLE, socket_readable, c);
-
     aeCreateFileEvent(c->thread->loop, fd, AE_READABLE, socket_readable, c);
+
     aeCreateFileEvent(c->thread->loop, fd, AE_WRITABLE, socket_writeable, c);
 
     return;
@@ -865,6 +954,17 @@ static void socket_readable(aeEventLoop *loop, int fd, void *data, int mask) {
     connection *c = data;
     size_t n;
 
+#ifdef MACHNET
+        switch (sock.read(c, &n)) {
+            case OK:    break;
+            case ERROR: goto error;
+            case RETRY: return;
+        }
+
+        if (http_parser_execute(&c->parser, &parser_settings, c->buf, n) != n) goto error;
+        c->thread->bytes += n;
+
+#else
     do {
         switch (sock.read(c, &n)) {
             case OK:    break;
@@ -876,6 +976,7 @@ static void socket_readable(aeEventLoop *loop, int fd, void *data, int mask) {
         c->thread->bytes += n;
     } while (n == RECVBUF && sock.readable(c) > 0);
     // } while (n == RECVBUF && machnet_readable(c) > 0);  // Change `sock.readable` to `machnet_readable`
+#endif
 
     return;
 
@@ -1105,6 +1206,7 @@ static void print_stats_latency(stats *stats) {
     }
 }
 
+#if 0
 void poll_machnet_connections(thread *thread) {
     connection *c = thread->cs;  // Start of connections for the thread
 
@@ -1141,15 +1243,17 @@ void poll_machnet_connections(thread *thread) {
         }
     }
 }
+#endif
 
 
-
+#if MACHNET
 // Wrapper for `sock_connect` to match the expected prototype
 status sock_connect_wrapper(connection *c, char *host) {
     // Use default local_ip and port as needed
-    char *local_ip = "10.10.1.1";  // Default local IP
+    char *local_ip = LOCAL_IP;  // Default local IP
     char *remote_ip = host;       // Use `host` as the remote IP
-    uint16_t remote_port = 8000;  // Default remote port
+    uint16_t remote_port = REMOTE_PORT;  // Default remote port
 
     return sock_connect(c, local_ip, remote_ip, remote_port);
 }
+#endif
