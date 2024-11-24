@@ -45,7 +45,6 @@ static struct {
 
 static struct sock sock = {
 #ifdef MACHNET
-    .attach   = socket_attach,
     .connect  = sock_connect_wrapper,  // Use the wrapper here
 #else
     .connect  = sock_connect,

@@ -32,18 +32,6 @@ char *local_ip;  // Declare `local_ip` as a global variable
 //     }
 // }
 
-#ifdef MACHNET
-status socket_attach(thread *t) {
-    // Attach a Machnet channel
-   // t->channel_ctx = machnet_attach();
-   // if (t->channel_ctx == 0) {
-    //    fprintf(stderr, "[ERROR] Failed to attach Machnet channel (net.c): %s\n", strerror(errno));
-    //    return ERROR;
-   // }
-    return OK;
-}
-#endif
-
 // Enhanced sock_connect with debug statements
 status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t remote_port) {
     MachnetFlow_t flow;
