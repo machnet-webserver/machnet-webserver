@@ -199,10 +199,6 @@ int main(int argc, char **argv) {
         t->throughput = throughput;
         t->stop_at     = stop_at;
 
-#ifdef MACHNET
-        sock.attach(t);
-#endif
-
         t->L = script_create(cfg.script, url, headers);
         script_init(L, t, argc - optind, &argv[optind]);
 
