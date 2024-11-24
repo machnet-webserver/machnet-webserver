@@ -66,6 +66,8 @@ status sock_connect(connection *c, char *local_ip, char *remote_ip, uint16_t rem
             if(c->channel_ctx == 0) {
                 fprintf(stderr, "[ERROR] failed to attach to machnet.\n");
             }
+        } else {
+            return OK;
         }
     //} 
 
