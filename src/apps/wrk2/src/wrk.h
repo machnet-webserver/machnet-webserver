@@ -29,7 +29,7 @@
 #define SAMPLES  1000000 // was 100000000
 
 #define SOCKET_TIMEOUT_MS   2000 // was 2000
-#define CALIBRATE_DELAY_MS  5000 //was 10000
+#define CALIBRATE_DELAY_MS  10000 //was 10000
 #define TIMEOUT_INTERVAL_MS 250 // was 2000
 
 extern char *local_ip; // Declare global local_ip in net.h
