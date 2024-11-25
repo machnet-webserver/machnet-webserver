@@ -889,41 +889,72 @@ static void socket_connected(aeEventLoop *loop, int fd, void *data, int mask) {
 
 }
 
+// static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
+//     connection *c = data;
+//     thread *thread = c->thread;
+
+//     if (!c->written) {
+//         uint64_t time_usec_to_wait = usec_to_next_send(c);
+//         if (time_usec_to_wait) {
+//             int msec_to_wait = round((time_usec_to_wait / 1000.0L) + 0.5);
+
+//             // Not yet time to send. Delay:
+//             aeDeleteFileEvent(loop, fd, AE_WRITABLE);
+//             aeCreateTimeEvent(
+//                     thread->loop, msec_to_wait, delay_request, c, NULL);
+//             return;
+//         }
+//         c->latest_write = time_us();
+//     }
+
+//     if (!c->written && cfg.dynamic) {
+//         script_request(thread->L, &c->request, &c->length);
+//     }
+
+//     char  *buf = c->request + c->written;
+//     size_t len = c->length  - c->written;
+//     size_t n;
+
+//     if (!c->written) {
+//         c->start = time_us();
+//         if (!c->has_pending) {
+//             c->actual_latency_start = c->start;
+//             c->complete_at_last_batch_start = c->complete;
+//             c->has_pending = true;
+//         }
+//         c->pending = cfg.pipeline;
+//     }
+
+//     switch (sock.write(c, buf, len, &n)) {
+//         case OK:    break;
+//         case ERROR: goto error;
+//         case RETRY: return;
+//     }
+
+//     c->written += n;
+//     if (c->written == c->length) {
+//         c->written = 0;
+//         aeDeleteFileEvent(loop, fd, AE_WRITABLE);
+//     }
+
+//     return;
+
+//   error:
+//     thread->errors.write++;
+//     reconnect_socket(thread, c);
+// }
+
 static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     connection *c = data;
-    thread *thread = c->thread;
 
     if (!c->written) {
-        uint64_t time_usec_to_wait = usec_to_next_send(c);
-        if (time_usec_to_wait) {
-            int msec_to_wait = round((time_usec_to_wait / 1000.0L) + 0.5);
-
-            // Not yet time to send. Delay:
-            aeDeleteFileEvent(loop, fd, AE_WRITABLE);
-            aeCreateTimeEvent(
-                    thread->loop, msec_to_wait, delay_request, c, NULL);
-            return;
-        }
-        c->latest_write = time_us();
-    }
-
-    if (!c->written && cfg.dynamic) {
-        script_request(thread->L, &c->request, &c->length);
-    }
-
-    char  *buf = c->request + c->written;
-    size_t len = c->length  - c->written;
-    size_t n;
-
-    if (!c->written) {
+        prepare_request_buffer(c); // Ensure the request buffer is ready
         c->start = time_us();
-        if (!c->has_pending) {
-            c->actual_latency_start = c->start;
-            c->complete_at_last_batch_start = c->complete;
-            c->has_pending = true;
-        }
-        c->pending = cfg.pipeline;
     }
+
+    char *buf = c->request + c->written;
+    size_t len = c->length - c->written;
+    size_t n;
 
     switch (sock.write(c, buf, len, &n)) {
         case OK:    break;
@@ -932,16 +963,16 @@ static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     }
 
     c->written += n;
+
     if (c->written == c->length) {
         c->written = 0;
         aeDeleteFileEvent(loop, fd, AE_WRITABLE);
     }
-
     return;
 
-  error:
-    thread->errors.write++;
-    reconnect_socket(thread, c);
+error:
+    c->thread->errors.write++;
+    reconnect_socket(c->thread, c);
 }
 
 
