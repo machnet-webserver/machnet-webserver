@@ -7,7 +7,6 @@
 #include "net.h"
 
 #include "machnet.h"  
-#define MAX_WRITE_CHUNK (16 * 1024)  // 16 KB
 
 char *local_ip;  // Declare `local_ip` as a global variable
 
@@ -182,38 +181,19 @@ status sock_read(connection *c, size_t *n) {
 //     }
 // }
 
-// status sock_write(connection *c, char *buf, size_t len, size_t *n) {
-//     int result = machnet_send(c->channel_ctx, c->machnet_flow, buf, len);
-
-//     if (result >= 0) {
-//         *n = len;
-// #ifdef MACHNET_DEBUG
-//         printf("[DEBUG] Sent %zu bytes (net.c).\n", len);
-// #endif
-//         return OK;
-//     } else {
-//         fprintf(stderr, "[ERROR] machnet_send failed: %s\n", strerror(errno));
-//         return ERROR;
-//     }
-// }
-
 status sock_write(connection *c, char *buf, size_t len, size_t *n) {
-    size_t total_sent = 0;
-    while (total_sent < len) {
-        size_t chunk_size = MIN(len - total_sent, MAX_WRITE_CHUNK);
-        int result = machnet_send(c->channel_ctx, c->machnet_flow, buf + total_sent, chunk_size);
+    int result = machnet_send(c->channel_ctx, c->machnet_flow, buf, len);
 
-        if (result > 0) {
-            total_sent += result;
-        } else if (result == 0 || errno == EAGAIN) {
-            return RETRY;
-        } else {
-            fprintf(stderr, "[ERROR] machnet_send failed: %s\n", strerror(errno));
-            return ERROR;
-        }
+    if (result >= 0) {
+        *n = len;
+#ifdef MACHNET_DEBUG
+        printf("[DEBUG] Sent %zu bytes (net.c).\n", len);
+#endif
+        return OK;
+    } else {
+        fprintf(stderr, "[ERROR] machnet_send failed: %s\n", strerror(errno));
+        return ERROR;
     }
-    *n = total_sent;
-    return OK;
 }
 
 
