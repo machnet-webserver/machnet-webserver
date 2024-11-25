@@ -147,8 +147,8 @@ int main(int argc, char **argv) {
     signal(SIGINT,  SIG_IGN);
 
     pthread_mutex_init(&statistics.mutex, NULL);
-    // statistics.requests = stats_alloc(10);
-    statistics.requests = stats_alloc(5);
+    statistics.requests = stats_alloc(10);
+    // statistics.requests = stats_alloc(5);
     thread *threads = zcalloc(cfg.threads * sizeof(thread));
 
     hdr_init(1, MAX_LATENCY, 3, &(statistics.requests->histogram));
@@ -195,8 +195,8 @@ int main(int argc, char **argv) {
 
     for (uint64_t i = 0; i < cfg.threads; i++) {
         thread *t = &threads[i];
-        // t->loop        = aeCreateEventLoop(10 + cfg.connections * 3);
-        t->loop = aeCreateEventLoop(5 + cfg.connections);
+        t->loop        = aeCreateEventLoop(10 + cfg.connections * 3);
+        // t->loop = aeCreateEventLoop(5 + cfg.connections);
         t->connections = connections;
         t->throughput = throughput;
         t->stop_at     = stop_at;
