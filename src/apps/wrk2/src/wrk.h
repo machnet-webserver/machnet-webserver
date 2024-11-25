@@ -108,13 +108,20 @@ typedef struct connection {
 
 // Added struct config below existing definitions
 typedef struct config {
-    uint64_t threads;
-    uint64_t connections;
-    uint64_t duration;
-    uint64_t timeout;
-    uint64_t pipeline;
-    uint64_t rate;
-    uint64_t delay_ms;
+    // uint64_t threads;
+    // uint64_t connections;
+    // uint64_t duration;
+    // uint64_t timeout;
+    // uint64_t pipeline;
+    // uint64_t rate;
+    // uint64_t delay_ms;
+    uint32_t threads;
+    uint32_t connections;
+    uint32_t duration;
+    uint32_t timeout;
+    uint32_t pipeline;
+    uint32_t rate;
+    uint32_t delay_ms;
     bool     latency;
     bool     u_latency;
     bool     dynamic;
