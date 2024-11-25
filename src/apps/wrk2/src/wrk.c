@@ -459,6 +459,15 @@ void *thread_main(void *arg) {
     //     }
     // }
 
+    for (uint64_t i = 0; i < cfg.threads; i++) {
+    thread *t = &threads[i];
+    pthread_join(t->thread, NULL);
+    if (t->complete >= cfg.connections) {
+        printf("[DEBUG] Main loop exiting after max connections.\n");
+        break;
+        }
+    }
+
     // Clean up resources after the event loop ends
     aeDeleteEventLoop(loop);
     zfree(thread->cs);
