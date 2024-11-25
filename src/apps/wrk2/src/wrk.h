@@ -19,7 +19,7 @@
 
 #define VERSION  "4.0.0"
 #define RECVBUF  8192
-#define SAMPLES  100000000
+#define SAMPLES  1000000 // was 100000000
 
 #define SOCKET_TIMEOUT_MS   1000 // was 2000
 #define CALIBRATE_DELAY_MS  2000 //was 10000
