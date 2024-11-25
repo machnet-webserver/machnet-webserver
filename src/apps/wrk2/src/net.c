@@ -181,15 +181,37 @@ status sock_read(connection *c, size_t *n) {
 //     }
 // }
 
+// status sock_write(connection *c, char *buf, size_t len, size_t *n) {
+//     int result = machnet_send(c->channel_ctx, c->machnet_flow, buf, len);
+
+//     if (result >= 0) {
+//         *n = len;
+// #ifdef MACHNET_DEBUG
+//         printf("[DEBUG] Sent %zu bytes (net.c).\n", len);
+// #endif
+//         return OK;
+//     } else {
+//         fprintf(stderr, "[ERROR] machnet_send failed: %s\n", strerror(errno));
+//         return ERROR;
+//     }
+// }
+
 status sock_write(connection *c, char *buf, size_t len, size_t *n) {
+    // Attempt to send the entire buffer in one operation.
     int result = machnet_send(c->channel_ctx, c->machnet_flow, buf, len);
 
     if (result >= 0) {
         *n = len;
 #ifdef MACHNET_DEBUG
-        printf("[DEBUG] Sent %zu bytes (net.c).\n", len);
+        printf("[DEBUG] Sent %zu bytes in one call (net.c).\n", len);
 #endif
         return OK;
+    } else if (errno == EAGAIN) {
+        // If the buffer is temporarily full, retry logic can be added here.
+#ifdef MACHNET_DEBUG
+        printf("[DEBUG] machnet_send temporarily full, retrying (net.c).\n");
+#endif
+        return RETRY;
     } else {
         fprintf(stderr, "[ERROR] machnet_send failed: %s\n", strerror(errno));
         return ERROR;

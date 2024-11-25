@@ -17,7 +17,6 @@
 #define LOCAL_IP "10.10.1.1"
 #define REMOTE_PORT 8000
 #endif
-#define MAX_REQUEST_SIZE 1024
 
 config cfg;
 
@@ -385,23 +384,6 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-static void setup_pipeline_requests(connection *c, uint64_t pipeline) {
-    // Allocate combined buffer for pipelined requests
-    c->request = malloc(pipeline * MAX_REQUEST_SIZE);
-    if (!c->request) {
-        fprintf(stderr, "Failed to allocate memory for pipeline requests\n");
-        exit(1);
-    }
-    c->length = 0;
-
-    // Generate pipeline requests
-    for (uint64_t i = 0; i < pipeline; i++) {
-        c->length += snprintf(c->request + c->length, MAX_REQUEST_SIZE,
-                              "GET / HTTP/1.1\r\nHost: %s\r\n\r\n", cfg.host);
-    }
-}
-
-
 void *thread_main(void *arg) {
     thread *thread = arg;
     aeEventLoop *loop = thread->loop;
@@ -546,74 +528,6 @@ void *thread_main(void *arg) {
 
 //     return NULL;
 // }
-
-void *thread_main(void *arg) {
-    thread *thread = arg;
-    aeEventLoop *loop = thread->loop;
-
-    // Initialize thread resources
-    thread->cs = zcalloc(thread->connections * sizeof(connection));
-    tinymt64_init(&thread->rand, time_us());
-    hdr_init(1, MAX_LATENCY, 3, &thread->latency_histogram);
-    hdr_init(1, MAX_LATENCY, 3, &thread->u_latency_histogram);
-
-    char *request = NULL;
-    size_t length = 0;
-
-    // Generate a static request if dynamic requests are not configured
-    if (!cfg.dynamic) {
-        script_request(thread->L, &request, &length);
-    }
-
-    double throughput = (thread->throughput / 1000000.0) / thread->connections;
-
-    connection *c = thread->cs;
-
-    // Schedule initial connections and prepare pipeline requests
-    for (uint64_t i = 0; i < thread->connections; i++, c++) {
-        if (i >= cfg.connections) {
-            printf("[DEBUG] Max connections reached: %lu\n", cfg.connections);
-            break;
-        }
-
-        c->thread     = thread;
-        c->ssl        = cfg.ctx ? SSL_new(cfg.ctx) : NULL;
-        c->request    = NULL; // Initially no request buffer
-        c->length     = 0;
-        c->throughput = throughput;
-        c->catch_up_throughput = throughput * 2;
-        c->complete   = 0;
-        c->caught_up  = true;
-
-        // Prepare requests for pipelines
-        if (cfg.dynamic) {
-            setup_pipeline_requests(c, cfg.pipeline); // Prepare dynamic requests
-        } else {
-            c->request = request; // Use static request for non-dynamic configurations
-            c->length = length;
-        }
-
-        aeCreateTimeEvent(loop, i * 5, delayed_initial_connect, c, NULL);
-    }
-
-    // Schedule periodic calibration and timeout checks
-    uint64_t calibrate_delay = CALIBRATE_DELAY_MS + (thread->connections * 5);
-    uint64_t timeout_delay = TIMEOUT_INTERVAL_MS + (thread->connections * 5);
-
-    aeCreateTimeEvent(loop, calibrate_delay, calibrate, thread, NULL);
-    aeCreateTimeEvent(loop, timeout_delay, check_timeouts, thread, NULL);
-
-    // Start the event loop
-    thread->start = time_us();
-    aeMain(loop);
-
-    // Clean up resources after the event loop ends
-    aeDeleteEventLoop(loop);
-    zfree(thread->cs);
-
-    return NULL;
-}
-
 
 #ifdef MACHNET
 static int machnet_fd_alias = 1;
@@ -975,74 +889,41 @@ static void socket_connected(aeEventLoop *loop, int fd, void *data, int mask) {
 
 }
 
-// static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
-//     connection *c = data;
-//     thread *thread = c->thread;
-
-//     if (!c->written) {
-//         uint64_t time_usec_to_wait = usec_to_next_send(c);
-//         if (time_usec_to_wait) {
-//             int msec_to_wait = round((time_usec_to_wait / 1000.0L) + 0.5);
-
-//             // Not yet time to send. Delay:
-//             aeDeleteFileEvent(loop, fd, AE_WRITABLE);
-//             aeCreateTimeEvent(
-//                     thread->loop, msec_to_wait, delay_request, c, NULL);
-//             return;
-//         }
-//         c->latest_write = time_us();
-//     }
-
-//     if (!c->written && cfg.dynamic) {
-//         script_request(thread->L, &c->request, &c->length);
-//     }
-
-//     char  *buf = c->request + c->written;
-//     size_t len = c->length  - c->written;
-//     size_t n;
-
-//     if (!c->written) {
-//         c->start = time_us();
-//         if (!c->has_pending) {
-//             c->actual_latency_start = c->start;
-//             c->complete_at_last_batch_start = c->complete;
-//             c->has_pending = true;
-//         }
-//         c->pending = cfg.pipeline;
-//     }
-
-//     switch (sock.write(c, buf, len, &n)) {
-//         case OK:    break;
-//         case ERROR: goto error;
-//         case RETRY: return;
-//     }
-
-//     c->written += n;
-//     if (c->written == c->length) {
-//         c->written = 0;
-//         aeDeleteFileEvent(loop, fd, AE_WRITABLE);
-//     }
-
-//     return;
-
-//   error:
-//     thread->errors.write++;
-//     reconnect_socket(thread, c);
-// }
-
 static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     connection *c = data;
+    thread *thread = c->thread;
 
-    if (!c->written) { // No data written yet
-        if (!c->request) {
-            setup_pipeline_requests(c, cfg.pipeline); // Prepare pipeline requests
+    if (!c->written) {
+        uint64_t time_usec_to_wait = usec_to_next_send(c);
+        if (time_usec_to_wait) {
+            int msec_to_wait = round((time_usec_to_wait / 1000.0L) + 0.5);
+
+            // Not yet time to send. Delay:
+            aeDeleteFileEvent(loop, fd, AE_WRITABLE);
+            aeCreateTimeEvent(
+                    thread->loop, msec_to_wait, delay_request, c, NULL);
+            return;
         }
-        c->start = time_us(); // Record the start time
+        c->latest_write = time_us();
     }
 
-    char *buf = c->request + c->written;
-    size_t len = c->length - c->written;
+    if (!c->written && cfg.dynamic) {
+        script_request(thread->L, &c->request, &c->length);
+    }
+
+    char  *buf = c->request + c->written;
+    size_t len = c->length  - c->written;
     size_t n;
+
+    if (!c->written) {
+        c->start = time_us();
+        if (!c->has_pending) {
+            c->actual_latency_start = c->start;
+            c->complete_at_last_batch_start = c->complete;
+            c->has_pending = true;
+        }
+        c->pending = cfg.pipeline;
+    }
 
     switch (sock.write(c, buf, len, &n)) {
         case OK:    break;
@@ -1051,19 +932,16 @@ static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     }
 
     c->written += n;
-
-    // Free the buffer after the entire pipeline is written
     if (c->written == c->length) {
-        free(c->request);
-        c->request = NULL; // Avoid dangling pointer
-        c->written = 0;    // Reset written counter
+        c->written = 0;
         aeDeleteFileEvent(loop, fd, AE_WRITABLE);
     }
+
     return;
 
-error:
-    c->thread->errors.write++;
-    reconnect_socket(c->thread, c);
+  error:
+    thread->errors.write++;
+    reconnect_socket(thread, c);
 }
 
 
