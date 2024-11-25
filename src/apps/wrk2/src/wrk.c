@@ -892,10 +892,15 @@ static void socket_connected(aeEventLoop *loop, int fd, void *data, int mask) {
 // Helper function to combine multiple requests into a single buffer
 void combine_requests(char **requests, size_t *lengths, uint64_t pipeline, char **out_buf, size_t *out_len) {
     size_t total_len = 0;
+    const char *delimiter = "\r\n";  // Adjust as needed based on protocol
+    size_t delimiter_len = strlen(delimiter);
 
-    // Calculate total length
+    // Calculate total length, accounting for delimiters
     for (uint64_t i = 0; i < pipeline; i++) {
         total_len += lengths[i];
+        if (i < pipeline - 1) {  // Add delimiters between requests
+            total_len += delimiter_len;
+        }
     }
     *out_buf = malloc(total_len);
 
@@ -904,9 +909,14 @@ void combine_requests(char **requests, size_t *lengths, uint64_t pipeline, char 
     for (uint64_t i = 0; i < pipeline; i++) {
         memcpy(*out_buf + offset, requests[i], lengths[i]);
         offset += lengths[i];
+        if (i < pipeline - 1) {  // Add delimiter after each request
+            memcpy(*out_buf + offset, delimiter, delimiter_len);
+            offset += delimiter_len;
+        }
     }
     *out_len = total_len;
 }
+
 
 
 static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
@@ -957,56 +967,44 @@ static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     //     aeDeleteFileEvent(loop, fd, AE_WRITABLE);
     // }
 
-    if (!c->written) {
-        if (cfg.pipeline > 1) {
-            // Batch multiple requests
-            char **requests = malloc(cfg.pipeline * sizeof(char *));
-            size_t *lengths = malloc(cfg.pipeline * sizeof(size_t));
+    if (!c->written && cfg.dynamic) {
+        // Allocate space for combined requests
+        char *combined_buf = NULL;
+        size_t combined_len = 0;
 
-            for (uint64_t i = 0; i < cfg.pipeline; i++) {
-                script_request(thread->L, &requests[i], &lengths[i]);
-            }
+        // Example: Prepare a set of requests to combine
+        char *requests[cfg.pipeline];
+        size_t lengths[cfg.pipeline];
 
-            char *combined_buf;
-            size_t combined_len;
-            combine_requests(requests, lengths, cfg.pipeline, &combined_buf, &combined_len);
-
-            size_t n;
-            switch (sock.write(c, combined_buf, combined_len, &n)) {
-                case OK:    break;
-                case ERROR: goto error;
-                case RETRY: return;
-            }
-
-            // Free resources
-            free(combined_buf);
-            free(requests);
-            free(lengths);
-            c->written = combined_len; // Assume all data sent
-        } else {
-            // Fall back to single request logic
-            if (cfg.dynamic) {
-                script_request(thread->L, &c->request, &c->length);
-            }
-
-            char *buf = c->request + c->written;
-            size_t len = c->length - c->written;
-            size_t n;
-
-            switch (sock.write(c, buf, len, &n)) {
-                case OK:    break;
-                case ERROR: goto error;
-                case RETRY: return;
-            }
-
-            c->written += n;
-            if (c->written == c->length) {
-                c->written = 0;
-            }
+        for (uint64_t i = 0; i < cfg.pipeline; i++) {
+            script_request(thread->L, &requests[i], &lengths[i]);
         }
 
+        // Combine requests into one buffer
+        combine_requests(requests, lengths, cfg.pipeline, &combined_buf, &combined_len);
+
+        c->request = combined_buf;  // Assign combined buffer
+        c->length = combined_len;  // Update combined length
+    }
+
+    // Write the combined request buffer
+    char *buf = c->request + c->written;
+    size_t len = c->length - c->written;
+    size_t n;
+
+    switch (sock.write(c, buf, len, &n)) {
+        case OK:    break;
+        case ERROR: goto error;
+        case RETRY: return;
+    }
+
+    c->written += n;
+    if (c->written == c->length) {
+        free(c->request);  // Free combined buffer
+        c->written = 0;
         aeDeleteFileEvent(loop, fd, AE_WRITABLE);
     }
+
 
 
     return;
