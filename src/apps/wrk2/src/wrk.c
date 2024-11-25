@@ -889,6 +889,26 @@ static void socket_connected(aeEventLoop *loop, int fd, void *data, int mask) {
 
 }
 
+// Helper function to combine multiple requests into a single buffer
+void combine_requests(char **requests, size_t *lengths, uint64_t pipeline, char **out_buf, size_t *out_len) {
+    size_t total_len = 0;
+
+    // Calculate total length
+    for (uint64_t i = 0; i < pipeline; i++) {
+        total_len += lengths[i];
+    }
+    *out_buf = malloc(total_len);
+
+    // Copy each request into the combined buffer
+    size_t offset = 0;
+    for (uint64_t i = 0; i < pipeline; i++) {
+        memcpy(*out_buf + offset, requests[i], lengths[i]);
+        offset += lengths[i];
+    }
+    *out_len = total_len;
+}
+
+
 static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     connection *c = data;
     thread *thread = c->thread;
@@ -907,35 +927,87 @@ static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
         c->latest_write = time_us();
     }
 
-    if (!c->written && cfg.dynamic) {
-        script_request(thread->L, &c->request, &c->length);
-    }
+    // if (!c->written && cfg.dynamic) {
+    //     script_request(thread->L, &c->request, &c->length);
+    // }
 
-    char  *buf = c->request + c->written;
-    size_t len = c->length  - c->written;
-    size_t n;
+    // char  *buf = c->request + c->written;
+    // size_t len = c->length  - c->written;
+    // size_t n;
+
+    // if (!c->written) {
+    //     c->start = time_us();
+    //     if (!c->has_pending) {
+    //         c->actual_latency_start = c->start;
+    //         c->complete_at_last_batch_start = c->complete;
+    //         c->has_pending = true;
+    //     }
+    //     c->pending = cfg.pipeline;
+    // }
+
+    // switch (sock.write(c, buf, len, &n)) {
+    //     case OK:    break;
+    //     case ERROR: goto error;
+    //     case RETRY: return;
+    // }
+
+    // c->written += n;
+    // if (c->written == c->length) {
+    //     c->written = 0;
+    //     aeDeleteFileEvent(loop, fd, AE_WRITABLE);
+    // }
 
     if (!c->written) {
-        c->start = time_us();
-        if (!c->has_pending) {
-            c->actual_latency_start = c->start;
-            c->complete_at_last_batch_start = c->complete;
-            c->has_pending = true;
+        if (cfg.pipeline > 1) {
+            // Batch multiple requests
+            char **requests = malloc(cfg.pipeline * sizeof(char *));
+            size_t *lengths = malloc(cfg.pipeline * sizeof(size_t));
+
+            for (uint64_t i = 0; i < cfg.pipeline; i++) {
+                script_request(thread->L, &requests[i], &lengths[i]);
+            }
+
+            char *combined_buf;
+            size_t combined_len;
+            combine_requests(requests, lengths, cfg.pipeline, &combined_buf, &combined_len);
+
+            size_t n;
+            switch (sock.write(c, combined_buf, combined_len, &n)) {
+                case OK:    break;
+                case ERROR: goto error;
+                case RETRY: return;
+            }
+
+            // Free resources
+            free(combined_buf);
+            free(requests);
+            free(lengths);
+            c->written = combined_len; // Assume all data sent
+        } else {
+            // Fall back to single request logic
+            if (cfg.dynamic) {
+                script_request(thread->L, &c->request, &c->length);
+            }
+
+            char *buf = c->request + c->written;
+            size_t len = c->length - c->written;
+            size_t n;
+
+            switch (sock.write(c, buf, len, &n)) {
+                case OK:    break;
+                case ERROR: goto error;
+                case RETRY: return;
+            }
+
+            c->written += n;
+            if (c->written == c->length) {
+                c->written = 0;
+            }
         }
-        c->pending = cfg.pipeline;
-    }
 
-    switch (sock.write(c, buf, len, &n)) {
-        case OK:    break;
-        case ERROR: goto error;
-        case RETRY: return;
-    }
-
-    c->written += n;
-    if (c->written == c->length) {
-        c->written = 0;
         aeDeleteFileEvent(loop, fd, AE_WRITABLE);
     }
+
 
     return;
 
