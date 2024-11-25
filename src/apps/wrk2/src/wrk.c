@@ -384,14 +384,6 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-// Replace the current pthread_create block within your thread_main function
-// Wrapper function for aeReadFast
-void *aeReadFastWrapper(void *arg) {
-    aeEventLoop *loop = (aeEventLoop *)arg;  // Cast argument to correct type
-    aeReadFast(loop);  // Call the actual function
-    return NULL;  // pthread functions must return void*
-}
-
 void *thread_main(void *arg) {
     thread *thread = arg;
     aeEventLoop *loop = thread->loop;
@@ -446,23 +438,12 @@ void *thread_main(void *arg) {
 
 
 
-// #ifdef MACHNET
-//     pthread_t read_thread;
-//     if (pthread_create(&read_thread, NULL, &aeReadFast, (void*)thread->loop)) { 
-//         printf("Failed to create read thread;");
-//     }
-// #endif
-
-    // Wait for all threads to complete
-    for (uint64_t i = 0; i < cfg.threads; i++) {
-        thread *t = &threads[i];
-        pthread_join(t->thread, NULL);
-
-        if (t->complete >= cfg.connections) {
-            printf("[DEBUG] Main loop exiting after max connections.\n");
-            break;
-        }
+#ifdef MACHNET
+    pthread_t read_thread;
+    if (pthread_create(&read_thread, NULL, &aeReadFast, (void*)thread->loop)) { 
+        printf("Failed to create read thread;");
     }
+#endif
 
     // Start the event loop
     thread->start = time_us();
@@ -477,16 +458,6 @@ void *thread_main(void *arg) {
     //         poll_machnet_connections(thread);
     //     }
     // }
-
-    for (uint64_t i = 0; i < cfg.threads; i++) {
-        thread *t = &threads[i];
-        pthread_join(t->thread, NULL);
-        
-        if (t->complete >= cfg.connections) {
-            printf("[DEBUG] Main loop exiting after max connections.\n");
-            break;
-        }
-    }
 
     // Clean up resources after the event loop ends
     aeDeleteEventLoop(loop);
@@ -917,8 +888,6 @@ static void socket_connected(aeEventLoop *loop, int fd, void *data, int mask) {
     reconnect_socket(c->thread, c);
 
 }
-
-
 
 static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     connection *c = data;
