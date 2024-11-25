@@ -384,6 +384,14 @@ int main(int argc, char **argv) {
     return 0;
 }
 
+// Replace the current pthread_create block within your thread_main function
+// Wrapper function for aeReadFast
+void *aeReadFastWrapper(void *arg) {
+    aeEventLoop *loop = (aeEventLoop *)arg;  // Cast argument to correct type
+    aeReadFast(loop);  // Call the actual function
+    return NULL;  // pthread functions must return void*
+}
+
 void *thread_main(void *arg) {
     thread *thread = arg;
     aeEventLoop *loop = thread->loop;
@@ -438,12 +446,21 @@ void *thread_main(void *arg) {
 
 
 
-#ifdef MACHNET
+// #ifdef MACHNET
+//     pthread_t read_thread;
+//     if (pthread_create(&read_thread, NULL, &aeReadFast, (void*)thread->loop)) { 
+//         printf("Failed to create read thread;");
+//     }
+// #endif
+
+    // Replace the current pthread_create block within your thread_main function
+    #ifdef MACHNET
     pthread_t read_thread;
-    if (pthread_create(&read_thread, NULL, &aeReadFast, (void*)thread->loop)) { 
-        printf("Failed to create read thread;");
+    if (pthread_create(&read_thread, NULL, aeReadFastWrapper, (void *)thread->loop)) {
+        printf("Failed to create read thread\n");
     }
-#endif
+    #endif
+
 
     // Start the event loop
     thread->start = time_us();
