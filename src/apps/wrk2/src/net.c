@@ -7,6 +7,7 @@
 #include "net.h"
 
 #include "machnet.h"  
+#define MAX_WRITE_CHUNK (16 * 1024)  // 16 KB
 
 char *local_ip;  // Declare `local_ip` as a global variable
 
