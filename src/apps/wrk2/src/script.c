@@ -78,9 +78,9 @@ lua_State *script_create(char *file, char *url, char **headers) {
     }
 
     // Configure Lua garbage collection
-    lua_gc(L, LUA_GCSETPAUSE, 50); // Trigger GC earlier
-    lua_gc(L, LUA_GCSETSTEPMUL, 200); // Adjust GC aggressiveness
-    
+    lua_gc(L, LUA_GCSETPAUSE, 30); // Trigger GC earlier
+    lua_gc(L, LUA_GCSETSTEPMUL, 300); // Adjust GC aggressiveness
+
     luaL_openlibs(L);
 #ifdef MACHNET_DEBUG
     printf("[DEBUG] Lua state created and libraries opened.\n");
