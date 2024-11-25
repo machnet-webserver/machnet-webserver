@@ -147,7 +147,8 @@ int main(int argc, char **argv) {
     signal(SIGINT,  SIG_IGN);
 
     pthread_mutex_init(&statistics.mutex, NULL);
-    statistics.requests = stats_alloc(10);
+    // statistics.requests = stats_alloc(10);
+    statistics.requests = stats_alloc(5);
     thread *threads = zcalloc(cfg.threads * sizeof(thread));
 
     hdr_init(1, MAX_LATENCY, 3, &(statistics.requests->histogram));
