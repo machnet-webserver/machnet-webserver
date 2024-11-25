@@ -76,6 +76,11 @@ lua_State *script_create(char *file, char *url, char **headers) {
         fprintf(stderr, "[ERROR] Failed to create Lua state.\n");
         return NULL;
     }
+
+    // Configure Lua garbage collection
+    lua_gc(L, LUA_GCSETPAUSE, 50); // Trigger GC earlier
+    lua_gc(L, LUA_GCSETSTEPMUL, 200); // Adjust GC aggressiveness
+    
     luaL_openlibs(L);
 #ifdef MACHNET_DEBUG
     printf("[DEBUG] Lua state created and libraries opened.\n");
