@@ -453,14 +453,16 @@ void *thread_main(void *arg) {
 //     }
 // #endif
 
-    // Replace the current pthread_create block within your thread_main function
-    #ifdef MACHNET
-    pthread_t read_thread;
-    if (pthread_create(&read_thread, NULL, aeReadFastWrapper, (void *)thread->loop)) {
-        printf("Failed to create read thread\n");
-    }
-    #endif
+    // Wait for all threads to complete
+    for (uint64_t i = 0; i < cfg.threads; i++) {
+        thread *t = &threads[i];
+        pthread_join(t->thread, NULL);
 
+        if (t->complete >= cfg.connections) {
+            printf("[DEBUG] Main loop exiting after max connections.\n");
+            break;
+        }
+    }
 
     // Start the event loop
     thread->start = time_us();
