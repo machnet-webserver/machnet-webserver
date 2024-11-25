@@ -967,27 +967,31 @@ static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     //     aeDeleteFileEvent(loop, fd, AE_WRITABLE);
     // }
 
+    // If the request buffer isn't initialized and dynamic, allocate it
     if (!c->written && cfg.dynamic) {
-        // Allocate space for combined requests
+        // Free any existing request buffer to prevent leaks
+        if (c->request) {
+            free(c->request);
+            c->request = NULL;
+        }
+
+        // Prepare a new combined request
         char *combined_buf = NULL;
         size_t combined_len = 0;
 
-        // Example: Prepare a set of requests to combine
         char *requests[cfg.pipeline];
         size_t lengths[cfg.pipeline];
-
         for (uint64_t i = 0; i < cfg.pipeline; i++) {
             script_request(thread->L, &requests[i], &lengths[i]);
         }
 
-        // Combine requests into one buffer
         combine_requests(requests, lengths, cfg.pipeline, &combined_buf, &combined_len);
 
-        c->request = combined_buf;  // Assign combined buffer
-        c->length = combined_len;  // Update combined length
+        c->request = combined_buf;
+        c->length = combined_len;
     }
 
-    // Write the combined request buffer
+    // Write the request buffer to the socket
     char *buf = c->request + c->written;
     size_t len = c->length - c->written;
     size_t n;
@@ -999,12 +1003,14 @@ static void socket_writeable(aeEventLoop *loop, int fd, void *data, int mask) {
     }
 
     c->written += n;
+
+    // Check if the entire buffer has been written
     if (c->written == c->length) {
         free(c->request);  // Free combined buffer
-        c->written = 0;
-        aeDeleteFileEvent(loop, fd, AE_WRITABLE);
+        c->request = NULL;  // Avoid dangling pointer
+        c->written = 0;  // Reset written count
+        aeDeleteFileEvent(loop, fd, AE_WRITABLE);  // Stop monitoring writability
     }
-
 
 
     return;
